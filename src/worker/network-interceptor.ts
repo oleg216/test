@@ -37,42 +37,39 @@ export function setupNetworkInterceptor(
   sessionId: string,
   onLog: (entry: NetworkLogEntry) => void,
 ): void {
-  const requestTimestamps = new Map<string, number>();
+  const requestTimestamps = new Map<import('playwright').Request, number>();
 
   page.on('request', (request) => {
-    const url = request.url();
-    const method = request.method();
     const timestamp = Date.now();
-    requestTimestamps.set(url, timestamp);
+    requestTimestamps.set(request, timestamp);
 
     const entry: NetworkLogEntry = {
       sessionId,
       timestamp,
-      url,
-      method,
-      classification: classifyRequest(url, method),
+      url: request.url(),
+      method: request.method(),
+      classification: classifyRequest(request.url(), request.method()),
       direction: 'request',
     };
     onLog(entry);
   });
 
   page.on('response', (response) => {
-    const url = response.url();
-    const method = response.request().method();
+    const request = response.request();
     const timestamp = Date.now();
-    const startTime = requestTimestamps.get(url);
+    const startTime = requestTimestamps.get(request);
 
     const entry: NetworkLogEntry = {
       sessionId,
       timestamp,
-      url,
-      method,
+      url: response.url(),
+      method: request.method(),
       status: response.status(),
-      classification: classifyRequest(url, method),
+      classification: classifyRequest(response.url(), request.method()),
       direction: 'response',
       duration: startTime ? timestamp - startTime : undefined,
     };
     onLog(entry);
-    requestTimestamps.delete(url);
+    requestTimestamps.delete(request);
   });
 }

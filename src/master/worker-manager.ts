@@ -38,7 +38,7 @@ export class WorkerManager {
     const workerPath = resolve(process.cwd(), 'dist', 'worker', 'worker.js');
     const child = fork(workerPath, [], {
       env: { ...process.env, WORKER_ID: String(id) },
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
     });
 
     const handle: WorkerHandle = {
