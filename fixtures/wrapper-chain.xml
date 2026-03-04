@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VAST version="3.0">
+  <Ad id="chain-1">
+    <Wrapper>
+      <AdSystem>ChainAdServer</AdSystem>
+      <VASTAdTagURI><![CDATA[{{NEXT_URL}}]]></VASTAdTagURI>
+    </Wrapper>
+  </Ad>
+</VAST>

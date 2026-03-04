@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VAST version="4.0" xmlns="http://www.iab.com/VAST">
+  <Ad id="hls-1">
+    <InLine>
+      <AdSystem>HLSAdServer</AdSystem>
+      <AdTitle>HLS Ad</AdTitle>
+      <Impression><![CDATA[https://tracker.example.com/impression]]></Impression>
+      <Creatives>
+        <Creative>
+          <Linear>
+            <Duration>00:00:15</Duration>
+            <TrackingEvents>
+              <Tracking event="start"><![CDATA[https://tracker.example.com/start]]></Tracking>
+              <Tracking event="complete"><![CDATA[https://tracker.example.com/complete]]></Tracking>
+            </TrackingEvents>
+            <MediaFiles>
+              <MediaFile delivery="streaming" type="application/x-mpegURL" width="1920" height="1080">
+                <![CDATA[https://cdn.example.com/ad.m3u8]]>
+              </MediaFile>
+            </MediaFiles>
+          </Linear>
+        </Creative>
+      </Creatives>
+    </InLine>
+  </Ad>
+</VAST>
