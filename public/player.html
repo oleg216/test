@@ -46,21 +46,20 @@
         });
 
         await adPlayer.load(mediaUrl);
-        adVideo.play();
+        if (adVideo.readyState < 2) {
+          await new Promise(r => adVideo.addEventListener('canplay', r, { once: true }));
+        }
+        await adVideo.play();
 
-        return new Promise((resolve, reject) => {
-          adVideo.addEventListener('ended', () => {
-            window.__adCompleted = true;
-            resolve();
-          }, { once: true });
-
-          adVideo.addEventListener('error', (e) => {
-            reject(e);
-          }, { once: true });
-        });
+        adVideo.addEventListener('ended', () => {
+          window.__adCompleted = true;
+        }, { once: true });
       } catch (err) {
-        window.__adError = err.message;
-        throw err;
+        const msg = err && err.category != null
+          ? `Shaka error: category=${err.category} code=${err.code} severity=${err.severity}`
+          : (err && err.message ? err.message : String(err));
+        window.__adError = msg;
+        throw new Error(msg);
       }
     }
 
@@ -77,12 +76,18 @@
         });
 
         await contentPlayer.load(contentUrl);
-        contentVideo.play();
+        if (contentVideo.readyState < 2) {
+          await new Promise(r => contentVideo.addEventListener('canplay', r, { once: true }));
+        }
+        await contentVideo.play();
 
         window.__contentPlaying = true;
       } catch (err) {
-        window.__contentError = err.message;
-        throw err;
+        const msg = err && err.category != null
+          ? `Shaka error: category=${err.category} code=${err.code} severity=${err.severity}`
+          : (err && err.message ? err.message : String(err));
+        window.__contentError = msg;
+        throw new Error(msg);
       }
     }
 

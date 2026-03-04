@@ -7,7 +7,8 @@ export class BrowserPool {
     async init() {
         this.browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+            channel: 'chrome',
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--autoplay-policy=no-user-gesture-required'],
         });
         logger.info('Browser launched');
     }

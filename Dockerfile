@@ -12,7 +12,7 @@ COPY fixtures/ ./fixtures/
 
 RUN npm run build
 
-RUN npx playwright install chromium
+RUN npx playwright install chrome
 
 EXPOSE 3000
 
