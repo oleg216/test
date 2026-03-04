@@ -47,7 +47,11 @@
 
         await adPlayer.load(mediaUrl);
         if (adVideo.readyState < 2) {
-          await new Promise(r => adVideo.addEventListener('canplay', r, { once: true }));
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('canplay timeout after 15s')), 15000);
+            adVideo.addEventListener('canplay', () => { clearTimeout(timeout); resolve(); }, { once: true });
+            adVideo.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('video error waiting for canplay')); }, { once: true });
+          });
         }
         await adVideo.play();
 
@@ -77,7 +81,11 @@
 
         await contentPlayer.load(contentUrl);
         if (contentVideo.readyState < 2) {
-          await new Promise(r => contentVideo.addEventListener('canplay', r, { once: true }));
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('canplay timeout after 15s')), 15000);
+            contentVideo.addEventListener('canplay', () => { clearTimeout(timeout); resolve(); }, { once: true });
+            contentVideo.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('video error waiting for canplay')); }, { once: true });
+          });
         }
         await contentVideo.play();
 

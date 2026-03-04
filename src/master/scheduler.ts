@@ -7,9 +7,11 @@ import { SessionState } from '../shared/types.js';
 import type { SessionConfig, SessionInfo, WorkerToMasterMessage } from '../shared/types.js';
 
 const logger = createLogger('scheduler');
+const SESSION_CLEANUP_DELAY_MS = 60_000;
 
 export class SessionScheduler {
   private sessions = new Map<string, SessionInfo>();
+  private cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private workerManager: WorkerManager;
   private metrics: MetricsRegistry;
 
@@ -75,7 +77,7 @@ export class SessionScheduler {
           session.state = msg.state;
           session.updatedAt = Date.now();
           if (msg.metrics) {
-            for (const [key] of Object.entries(msg.metrics)) {
+            for (const key of Object.keys(msg.metrics)) {
               if (key.startsWith('tracking_')) {
                 this.metrics.trackingEventFired(key.replace('tracking_', ''));
               }
@@ -91,6 +93,7 @@ export class SessionScheduler {
           session.error = msg.error;
           session.updatedAt = Date.now();
         }
+        this.scheduleCleanup(msg.sessionId);
         break;
       }
       case 'session-stopped': {
@@ -101,6 +104,7 @@ export class SessionScheduler {
         }
         this.workerManager.removeSessionFromWorker(msg.sessionId);
         this.metrics.sessionsRunning(this.activeSessions);
+        this.scheduleCleanup(msg.sessionId);
         break;
       }
       case 'worker-stats':
@@ -125,5 +129,15 @@ export class SessionScheduler {
 
   get activeSessions(): number {
     return this.getActiveSessions().length;
+  }
+
+  private scheduleCleanup(sessionId: string): void {
+    if (this.cleanupTimers.has(sessionId)) return;
+    const timer = setTimeout(() => {
+      this.sessions.delete(sessionId);
+      this.cleanupTimers.delete(sessionId);
+      logger.debug({ sessionId }, 'Session cleaned up from memory');
+    }, SESSION_CLEANUP_DELAY_MS);
+    this.cleanupTimers.set(sessionId, timer);
   }
 }

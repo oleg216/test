@@ -24,7 +24,7 @@ let totalProcessed = 0;
 const ERROR_STATES_SET = new Set([
   SessionState.ERROR_VAST, SessionState.ERROR_MEDIA,
   SessionState.ERROR_NETWORK, SessionState.ERROR_TIMEOUT,
-  SessionState.STOPPED,
+  SessionState.STOPPING, SessionState.STOPPED,
 ]);
 
 function sendToMaster(msg: WorkerToMasterMessage): void {

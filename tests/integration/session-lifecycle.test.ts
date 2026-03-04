@@ -69,8 +69,8 @@ async function pollSession(sessionId: string, timeoutMs: number): Promise<any> {
 
 describe('Session Lifecycle (requires running server + mock DSP)', () => {
   it('full session: CREATED → ... → STOPPED with 6 tracking events', async () => {
-    // Reset mock DSP stats
-    await fetch(`${DSP_URL}/stats`);
+    // Reset mock DSP tracked events
+    await fetch(`${DSP_URL}/reset`, { method: 'POST' });
 
     // Create session
     const createRes = await fetch(`${BASE_URL}/api/sessions`, {
