@@ -61,7 +61,7 @@ export function parseVastXml(xml: string): VastParseResult {
   const durationMatch = xml.match(/<Duration[^>]*>([\s\S]*?)<\/Duration>/i);
   const duration = durationMatch ? parseDuration(durationMatch[1].trim()) : 0;
 
-  const mediaMatch = xml.match(/<MediaFile[^>]*>([\s\S]*?)<\/MediaFile>/i);
+  const mediaMatch = xml.match(/<MediaFile\s[^>]*>([\s\S]*?)<\/MediaFile>/i);
   const mediaUrl = mediaMatch ? extractCdata(mediaMatch[1]) : undefined;
 
   return { type, mediaUrl, duration, trackingEvents, impressionUrls, errorUrls };
