@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare var window: any;
+
 import { resolve } from 'path';
 import { createLogger } from '../shared/logger.js';
 import { BrowserPool } from './browser-pool.js';

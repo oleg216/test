@@ -60,7 +60,7 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
       throw new Error(`RTB request failed: ${response.status}`);
     }
 
-    const bidResponse: RtbBidResponse = await response.json();
+    const bidResponse = (await response.json()) as RtbBidResponse;
     logger.info({ requestId, seatbids: bidResponse.seatbid?.length || 0 }, 'RTB bid response received');
     return bidResponse;
   } finally {
