@@ -61,7 +61,7 @@ export class BrowserPool {
   }
 
   async destroy(): Promise<void> {
-    for (const [id, context] of this.contexts) {
+    for (const context of this.contexts.values()) {
       await context.close();
     }
     this.contexts.clear();

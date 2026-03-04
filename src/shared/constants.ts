@@ -4,7 +4,6 @@ export const SESSIONS_PER_WORKER = parseInt(process.env.SESSIONS_PER_WORKER || '
 export const RTB_TIMEOUT_MS = parseInt(process.env.RTB_TIMEOUT_MS || '2000', 10);
 export const VAST_TIMEOUT_MS = parseInt(process.env.VAST_TIMEOUT_MS || '3000', 10);
 export const MEDIA_TIMEOUT_MS = parseInt(process.env.MEDIA_TIMEOUT_MS || '5000', 10);
-export const MAX_EVENTS = 10000;
 export const MAX_WRAPPER_DEPTH = 5;
 export const WRAPPER_TIMEOUT_MS = 3000;
 export const MAX_RETRIES = 2;

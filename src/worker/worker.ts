@@ -10,7 +10,6 @@ import { sendBidRequest, extractVastFromBidResponse } from '../engines/rtb-adapt
 import { resolveVast } from '../engines/vast-resolver.js';
 import { buildTimeline, AdTimelineScheduler } from '../engines/ad-timeline.js';
 import { TrackingEngine } from '../engines/tracking-engine.js';
-import { MEDIA_TIMEOUT_MS } from '../shared/constants.js';
 import { SessionState } from '../shared/types.js';
 import type { MasterToWorkerMessage, WorkerToMasterMessage, NetworkLogEntry } from '../shared/types.js';
 
@@ -113,8 +112,8 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
         sm.incrementRetry();
         try {
           await page.evaluate((url: string) => (window as any).__loadAd(url), creative.mediaUrl);
-        } catch {
-          sm.setError(SessionState.ERROR_MEDIA, (err as Error).message);
+        } catch (retryErr) {
+          sm.setError(SessionState.ERROR_MEDIA, (retryErr as Error).message);
           sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
           return;
         }

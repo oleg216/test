@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --production=false
+RUN npx playwright install chrome
 
 COPY tsconfig.json ./
 COPY src/ ./src/
@@ -11,8 +12,6 @@ COPY public/ ./public/
 COPY fixtures/ ./fixtures/
 
 RUN npm run build
-
-RUN npx playwright install chrome
 
 EXPOSE 3000
 

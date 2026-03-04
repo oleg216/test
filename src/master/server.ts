@@ -56,7 +56,8 @@ export async function startMaster(): Promise<void> {
   });
 
   app.get('/api/sessions', async () => {
-    return { sessions: scheduler.getAllSessions(), total: scheduler.getAllSessions().length };
+    const sessions = scheduler.getAllSessions();
+    return { sessions, total: sessions.length };
   });
 
   app.get<{ Params: { id: string } }>('/api/sessions/:id', async (request, reply) => {
