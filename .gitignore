@@ -8,3 +8,4 @@ logs/
 
 *.tgz
 *.tsbuildinfo
+docker-compose.override.yml
