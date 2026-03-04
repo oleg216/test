@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  ctv-emulator:
+    build: .
+    container_name: ctv-emulator
+    ports:
+      - "3000:3000"
+    environment:
+      - MAX_SESSIONS=200
+      - MAX_WORKERS=20
+      - SESSIONS_PER_WORKER=10
+      - RTB_TIMEOUT_MS=2000
+      - VAST_TIMEOUT_MS=3000
+      - MEDIA_TIMEOUT_MS=5000
+      - LOG_ROTATION_SIZE=50m
+      - PORT=3000
+    volumes:
+      - ./logs:/app/logs
+      - ./fixtures:/app/fixtures
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
