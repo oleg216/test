@@ -1,0 +1,249 @@
+
+TECHNICAL SPECIFICATION
+Project: Headless CTV Emulator Platform
+Version: 2.0 (Production Architecture)
+Date: March 2026
+
+1. GENERAL DESCRIPTION
+The system is a scalable platform that emulates Connected TV (CTV) player behavior in headless mode. 
+It reproduces OTT video playback, VAST advertising, OpenRTB bidding flows, and tracking events.
+
+Use cases:
+- Integration testing for SSP/DSP platforms
+- Validation of VAST creatives
+- Testing tracking events and ad delivery logic
+- Load testing of video infrastructure
+- Anti‑fraud testing
+
+2. CORE CONCEPT
+Each session simulates an isolated CTV device environment with:
+- Playwright Chromium instance
+- Shaka Player video playback
+- RTB adapter
+- VAST resolver
+- Tracking engine
+- Network telemetry collector
+
+The platform must support at least 200 parallel sessions.
+
+3. ARCHITECTURE
+Master process:
+- API server (Fastify)
+- Session scheduler
+- Metrics registry
+- Worker manager
+
+Worker process:
+- Playwright browser
+- Session instances
+- Network instrumentation
+
+Workers handle multiple sessions (default: 10 per worker).
+
+4. TECH STACK
+Node.js 20 LTS
+TypeScript (strict mode)
+Playwright (Chromium)
+Shaka Player 4.x
+Fastify API
+Zod validation
+Pino logging
+Docker deployment
+Prometheus metrics (prom-client)
+
+5. SESSION STATE MACHINE
+States:
+CREATED → INITIALIZING → RTB_REQUESTING → VAST_RESOLVING → AD_LOADING → AD_PLAYING → CONTENT_PLAYING → STOPPING → STOPPED
+
+Error states:
+ERROR_VAST
+ERROR_MEDIA
+ERROR_NETWORK
+ERROR_TIMEOUT
+
+6. DEVICE EMULATION
+Each session must emulate a CTV device including:
+- OS (Android TV / Tizen / WebOS)
+- Vendor and model
+- Screen resolution
+- Device ID / IFA
+- IP and carrier
+- Network type
+
+7. OPENRTB REQUESTS
+Bid requests follow OpenRTB 2.6 and include:
+imp.video parameters
+app.bundle
+app.name
+app.storeurl
+device.ua
+device.devicetype=7
+
+8. VAST ENGINE
+Supported formats:
+- VAST 2.0
+- VAST 3.0
+- VAST 4.x
+
+Supported structures:
+- Inline
+- Wrapper
+
+Maximum wrapper depth: 5
+Wrapper timeout: 3 seconds per hop.
+
+9. AD TIMELINE ENGINE
+Scheduler fires events based on ad duration.
+
+Example for 20 second ad:
+0s  impression
+0s  start
+5s  firstQuartile
+10s midpoint
+15s thirdQuartile
+20s complete
+
+Allowed timing jitter ±1.5 seconds.
+
+10. TRACKING ENGINE
+Events:
+impression
+start
+firstQuartile
+midpoint
+thirdQuartile
+complete
+error
+
+Each event must fire exactly once using idempotency keys.
+
+11. NETWORK INSTRUMENTATION
+Playwright intercepts:
+request
+response
+
+Classification:
+rtb
+vast
+media
+tracking
+content
+
+All events logged to NDJSON logs.
+
+12. PLAYER IMPLEMENTATION
+File:
+public/player.html
+
+Video elements:
+content-video
+ad-video
+
+Ad is played first, then content stream.
+
+13. PLAYWRIGHT CONFIGURATION
+Each session uses a dedicated browser context with:
+custom user agent
+viewport
+geolocation
+timezone
+
+14. NETWORK EMULATION
+Optional simulation:
+bandwidth
+latency
+packet loss
+
+Profiles:
+3G
+4G
+WiFi
+
+15. LOGGING
+NDJSON structured logs including:
+session_id
+timestamp
+request URL
+event type
+
+Sensitive data masking required.
+
+16. METRICS
+Prometheus metrics exposed via /metrics endpoint.
+
+Key metrics:
+sessions_running
+tracking_events_total
+vast_requests_total
+vast_errors_total
+rtb_requests_total
+rtb_errors_total
+
+17. SESSION LIMITS
+MAX_SESSIONS = 200
+MAX_EVENTS = 10000
+
+18. FAULT TOLERANCE
+Timeouts:
+RTB 2000ms
+VAST 3000ms
+MEDIA 5000ms
+
+Retry policy: maximum 2 retries.
+
+19. MEMORY MANAGEMENT
+Target memory usage:
+~40MB per session
+
+Worker restart after 100 sessions to prevent memory leaks.
+
+20. SECURITY
+All API inputs validated via Zod.
+Sensitive keys masked in logs.
+
+21. DOCKER DEPLOYMENT
+Base image:
+mcr.microsoft.com/playwright
+
+docker-compose service:
+ctv-emulator
+
+Port:
+3000
+
+Volumes:
+logs
+fixtures
+
+22. ENVIRONMENT VARIABLES
+MAX_SESSIONS
+RTB_TIMEOUT_MS
+VAST_TIMEOUT_MS
+LOG_ROTATION_SIZE
+MAX_WORKERS
+SESSIONS_PER_WORKER
+
+23. TEST FIXTURES
+fixtures directory includes:
+inline-mp4.xml
+wrapper-simple.xml
+wrapper-chain.xml
+hls-ad.xml
+error.xml
+
+24. TESTING
+Repository must include:
+unit tests
+integration tests
+load testing scenarios
+
+25. ACCEPTANCE CRITERIA
+System must:
+- Start with docker compose
+- Create and run sessions
+- Support RTB bidding
+- Resolve VAST wrappers
+- Send all tracking events exactly once
+- Handle at least 50 parallel sessions reliably
+- Expose metrics endpoint
+
