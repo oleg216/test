@@ -28,7 +28,11 @@ const ERROR_STATES_SET = new Set([
 ]);
 
 function sendToMaster(msg: WorkerToMasterMessage): void {
-  process.send?.(msg);
+  try {
+    process.send?.(msg);
+  } catch {
+    logger.error({ type: msg.type }, 'IPC send failed — channel closed');
+  }
 }
 
 function reportStats(): void {
@@ -201,13 +205,17 @@ async function stopSession(sessionId: string): Promise<void> {
 }
 
 process.on('message', async (msg: MasterToWorkerMessage) => {
-  switch (msg.type) {
-    case 'create-session':
-      await createSession(msg.payload.sessionId, msg);
-      break;
-    case 'stop-session':
-      await stopSession(msg.sessionId);
-      break;
+  try {
+    switch (msg.type) {
+      case 'create-session':
+        await createSession(msg.payload.sessionId, msg);
+        break;
+      case 'stop-session':
+        await stopSession(msg.sessionId);
+        break;
+    }
+  } catch (err) {
+    logger.error({ err }, 'Unhandled error in message handler');
   }
 });
 

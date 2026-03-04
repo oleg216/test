@@ -69,7 +69,7 @@ export function parseVastXml(xml: string): VastParseResult {
 
 export async function resolveVast(
   vastUrlOrXml: string,
-  fetchFn: (url: string) => Promise<string> = defaultFetch,
+  fetchFn: (url: string, signal?: AbortSignal) => Promise<string> = defaultFetch,
   depth: number = 0,
 ): Promise<VastCreative> {
   if (depth > MAX_WRAPPER_DEPTH) {
@@ -105,17 +105,23 @@ export async function resolveVast(
   };
 }
 
-async function fetchWithTimeout(url: string, fetchFn: (url: string) => Promise<string>): Promise<string> {
-  return Promise.race([
-    fetchFn(url),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`VAST fetch timeout: ${url}`)), WRAPPER_TIMEOUT_MS)
-    ),
-  ]);
+async function fetchWithTimeout(url: string, fetchFn: (url: string, signal?: AbortSignal) => Promise<string>): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WRAPPER_TIMEOUT_MS);
+  try {
+    return await fetchFn(url, controller.signal);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`VAST fetch timeout: ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-async function defaultFetch(url: string): Promise<string> {
-  const response = await fetch(url);
+async function defaultFetch(url: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`VAST fetch failed: ${response.status}`);
   return response.text();
 }
