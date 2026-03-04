@@ -1,0 +1,13 @@
+export const MAX_SESSIONS = parseInt(process.env.MAX_SESSIONS || '200', 10);
+export const MAX_WORKERS = parseInt(process.env.MAX_WORKERS || '20', 10);
+export const SESSIONS_PER_WORKER = parseInt(process.env.SESSIONS_PER_WORKER || '10', 10);
+export const RTB_TIMEOUT_MS = parseInt(process.env.RTB_TIMEOUT_MS || '2000', 10);
+export const VAST_TIMEOUT_MS = parseInt(process.env.VAST_TIMEOUT_MS || '3000', 10);
+export const MEDIA_TIMEOUT_MS = parseInt(process.env.MEDIA_TIMEOUT_MS || '5000', 10);
+export const MAX_EVENTS = 10000;
+export const MAX_WRAPPER_DEPTH = 5;
+export const WRAPPER_TIMEOUT_MS = 3000;
+export const MAX_RETRIES = 2;
+export const WORKER_MAX_SESSIONS_BEFORE_RESTART = 100;
+export const PORT = parseInt(process.env.PORT || '3000', 10);
+export const TRACKING_JITTER_MS = 1500;
