@@ -76,6 +76,8 @@ export class SessionScheduler {
         if (session) {
           session.state = msg.state;
           session.updatedAt = Date.now();
+          if (msg.state === SessionState.RTB_REQUESTING) this.metrics.rtbRequest();
+          if (msg.state === SessionState.VAST_RESOLVING) this.metrics.vastRequest();
           if (msg.metrics) {
             for (const key of Object.keys(msg.metrics)) {
               if (key.startsWith('tracking_')) {
@@ -92,6 +94,8 @@ export class SessionScheduler {
           session.state = msg.state;
           session.error = msg.error;
           session.updatedAt = Date.now();
+          if (msg.state === SessionState.ERROR_VAST) this.metrics.vastError();
+          if (msg.state === SessionState.ERROR_NETWORK) this.metrics.rtbError();
         }
         this.scheduleCleanup(msg.sessionId);
         break;
@@ -101,6 +105,8 @@ export class SessionScheduler {
         if (session) {
           session.state = SessionState.STOPPED;
           session.updatedAt = Date.now();
+          const durationSec = (session.updatedAt - session.createdAt) / 1000;
+          this.metrics.sessionDuration.observe(durationSec);
         }
         this.workerManager.removeSessionFromWorker(msg.sessionId);
         this.metrics.sessionsRunning(this.activeSessions);
