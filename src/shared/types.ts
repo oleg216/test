@@ -132,6 +132,10 @@ export interface RtbBidRequest {
       w: number;
       h: number;
       linearity: number;
+      startdelay: number;
+      plcmt: number;
+      minduration?: number;
+      maxduration?: number;
     };
   }>;
   app: {
@@ -142,6 +146,8 @@ export interface RtbBidRequest {
   device: {
     ua: string;
     devicetype: number;
+    make?: string;
+    model?: string;
     ip: string;
     ifa: string;
     os: string;
@@ -150,16 +156,22 @@ export interface RtbBidRequest {
     h: number;
     connectiontype?: number;
     carrier?: string;
+    geo?: { lat: number; lon: number };
   };
+  at?: number;
+  tmax?: number;
+  cur?: string[];
 }
 
 export interface RtbBidResponse {
   id: string;
-  seatbid: Array<{
+  seatbid?: Array<{
     bid: Array<{
       id: string;
+      impid: string;
       adm: string;
       price: number;
     }>;
   }>;
+  nbr?: number;
 }

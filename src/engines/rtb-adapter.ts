@@ -5,18 +5,37 @@ import type { SessionConfig, RtbBidRequest, RtbBidResponse } from '../shared/typ
 
 const logger = createLogger('rtb-adapter');
 
+// oRTB 2.6 §3.2.18: 3=Connected TV, 7=Set Top Box
+function mapDeviceType(os: string): number {
+  switch (os) {
+    case 'AndroidTV':
+    case 'Tizen':
+    case 'WebOS':
+      return 3; // Connected TV
+    default:
+      return 7; // Set Top Box (external devices)
+  }
+}
+
 export function buildBidRequest(config: SessionConfig, requestId: string): RtbBidRequest {
-  return {
+  const request: RtbBidRequest = {
     id: requestId,
+    at: 1, // First Price auction
+    tmax: RTB_TIMEOUT_MS,
+    cur: ['USD'],
     imp: [
       {
         id: '1',
         video: {
           mimes: ['video/mp4', 'application/x-mpegURL'],
-          protocols: [2, 3, 5, 6],
+          protocols: [2, 3, 5, 6], // VAST 2.0, 3.0, 2.0 wrapper, 3.0 wrapper
           w: config.device.screenWidth,
           h: config.device.screenHeight,
-          linearity: 1,
+          linearity: 1, // Linear (in-stream)
+          startdelay: 0, // Pre-roll
+          plcmt: 1, // In-Stream (oRTB 2.6)
+          minduration: 5,
+          maxduration: 120,
         },
       },
     ],
@@ -27,7 +46,9 @@ export function buildBidRequest(config: SessionConfig, requestId: string): RtbBi
     },
     device: {
       ua: config.device.userAgent,
-      devicetype: 7,
+      devicetype: mapDeviceType(config.device.os),
+      make: config.device.vendor,
+      model: config.device.model,
       ip: config.device.ip,
       ifa: config.device.ifa,
       os: config.device.os,
@@ -37,6 +58,12 @@ export function buildBidRequest(config: SessionConfig, requestId: string): RtbBi
       carrier: config.device.carrier,
     },
   };
+
+  if (config.device.geo) {
+    request.device.geo = { lat: config.device.geo.lat, lon: config.device.geo.lon };
+  }
+
+  return request;
 }
 
 export async function sendBidRequest(config: SessionConfig): Promise<RtbBidResponse> {
@@ -56,6 +83,12 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
       signal: controller.signal,
     });
 
+    // oRTB 2.6 §4.2.1: HTTP 204 = no-bid
+    if (response.status === 204) {
+      logger.info({ requestId }, 'DSP returned no-bid (204)');
+      return { id: requestId, seatbid: [] };
+    }
+
     if (!response.ok) {
       throw new Error(`RTB request failed: ${response.status}`);
     }
@@ -68,9 +101,23 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
   }
 }
 
-export function extractVastFromBidResponse(bidResponse: RtbBidResponse): string | null {
-  const seatbid = bidResponse.seatbid?.[0];
+export function extractVastFromBidResponse(bidResponse: RtbBidResponse, requestId?: string): string | null {
+  if (!bidResponse.seatbid?.length) {
+    if (bidResponse.nbr != null) {
+      logger.info({ nbr: bidResponse.nbr }, 'DSP returned no-bid reason');
+    }
+    return null;
+  }
+
+  const seatbid = bidResponse.seatbid[0];
   const bid = seatbid?.bid?.[0];
   if (!bid?.adm) return null;
+
+  // oRTB 2.6 §4.2.3: price must be positive
+  if (bid.price <= 0) {
+    logger.warn({ price: bid.price }, 'Bid price is zero or negative, ignoring');
+    return null;
+  }
+
   return bid.adm;
 }
