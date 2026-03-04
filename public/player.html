@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTV Player</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; }
+    video { width: 100vw; height: 100vh; object-fit: contain; }
+    #ad-video { position: absolute; top: 0; left: 0; z-index: 10; }
+    #content-video { position: absolute; top: 0; left: 0; z-index: 1; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <video id="ad-video" class="hidden" playsinline></video>
+  <video id="content-video" class="hidden" playsinline></video>
+
+  <script>
+    const adVideo = document.getElementById('ad-video');
+    const contentVideo = document.getElementById('content-video');
+
+    let adPlayer = null;
+    let contentPlayer = null;
+
+    async function initShaka() {
+      shaka.polyfill.installAll();
+      if (!shaka.Player.isBrowserSupported()) {
+        window.__playerError = 'Browser not supported';
+        return;
+      }
+    }
+
+    async function loadAd(mediaUrl) {
+      try {
+        adVideo.classList.remove('hidden');
+        contentVideo.classList.add('hidden');
+
+        adPlayer = new shaka.Player();
+        await adPlayer.attach(adVideo);
+
+        adPlayer.addEventListener('error', (e) => {
+          window.__adError = e.detail;
+        });
+
+        await adPlayer.load(mediaUrl);
+        adVideo.play();
+
+        return new Promise((resolve, reject) => {
+          adVideo.addEventListener('ended', () => {
+            window.__adCompleted = true;
+            resolve();
+          }, { once: true });
+
+          adVideo.addEventListener('error', (e) => {
+            reject(e);
+          }, { once: true });
+        });
+      } catch (err) {
+        window.__adError = err.message;
+        throw err;
+      }
+    }
+
+    async function loadContent(contentUrl) {
+      try {
+        adVideo.classList.add('hidden');
+        contentVideo.classList.remove('hidden');
+
+        contentPlayer = new shaka.Player();
+        await contentPlayer.attach(contentVideo);
+
+        contentPlayer.addEventListener('error', (e) => {
+          window.__contentError = e.detail;
+        });
+
+        await contentPlayer.load(contentUrl);
+        contentVideo.play();
+
+        window.__contentPlaying = true;
+      } catch (err) {
+        window.__contentError = err.message;
+        throw err;
+      }
+    }
+
+    function getAdCurrentTime() {
+      return adVideo.currentTime || 0;
+    }
+
+    function getAdDuration() {
+      return adVideo.duration || 0;
+    }
+
+    function stopAll() {
+      if (adPlayer) { adPlayer.destroy(); adPlayer = null; }
+      if (contentPlayer) { contentPlayer.destroy(); contentPlayer = null; }
+      adVideo.src = '';
+      contentVideo.src = '';
+    }
+
+    window.__initShaka = initShaka;
+    window.__loadAd = loadAd;
+    window.__loadContent = loadContent;
+    window.__getAdCurrentTime = getAdCurrentTime;
+    window.__getAdDuration = getAdDuration;
+    window.__stopAll = stopAll;
+    window.__adCompleted = false;
+    window.__contentPlaying = false;
+    window.__playerReady = false;
+
+    initShaka().then(() => {
+      window.__playerReady = true;
+    });
+  </script>
+</body>
+</html>
