@@ -1,0 +1,20 @@
+import pino from 'pino';
+const SENSITIVE_KEYS = ['ifa', 'ip', 'deviceId', 'carrier'];
+export function maskSensitiveData(data) {
+    const masked = { ...data };
+    for (const key of SENSITIVE_KEYS) {
+        if (key in masked) {
+            masked[key] = '***MASKED***';
+        }
+    }
+    return masked;
+}
+export function createLogger(name) {
+    return pino({
+        name,
+        level: process.env.LOG_LEVEL || 'info',
+    });
+}
+export const masterLogger = createLogger('master');
+export const workerLogger = createLogger('worker');
+//# sourceMappingURL=logger.js.map
