@@ -1,0 +1,241 @@
+{
+  "title": "CTV Emulator — Anti-Fraud & Pixalate Readiness Report",
+  "date": "2026-03-05T17:00:54.307Z",
+  "serverIp": "37.1.221.149",
+  "pixalateApiKeyPrefix": "GNfbhC",
+  "pixalateApiStatus": "INVALID_KEY",
+  "fraudThreshold": 0.25,
+  "summary": {
+    "total": 36,
+    "passed": 35,
+    "failed": 1,
+    "apiConnectivity": false,
+    "fingerprintSpoofingReady": true,
+    "profileGenerationReady": true
+  },
+  "results": [
+    {
+      "testName": "Pixalate API: connectivity",
+      "category": "api",
+      "httpStatus": 401,
+      "pass": false,
+      "detail": "HTTP 401 — API key invalid or expired",
+      "rawResponse": {
+        "error": "Unauthorized"
+      }
+    },
+    {
+      "testName": "AndroidTV: IP in residential range",
+      "category": "profile",
+      "ip": "96.162.83.145",
+      "pass": true,
+      "detail": "96.162.83.145 — residential ISP range"
+    },
+    {
+      "testName": "AndroidTV: navigator.platform",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Linux armv8l (server would show \"Linux x86_64\")"
+    },
+    {
+      "testName": "AndroidTV: hardwareConcurrency",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "4 cores (server has 24+)"
+    },
+    {
+      "testName": "AndroidTV: deviceMemory",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "2 GB (server has 8+)"
+    },
+    {
+      "testName": "AndroidTV: WebGL renderer",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "ARM Mali-G78 (server: NVIDIA)"
+    },
+    {
+      "testName": "AndroidTV: canvas noise (deterministic)",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "seed=3327919402 (hash of deviceId)"
+    },
+    {
+      "testName": "AndroidTV: navigator.plugins",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "0 plugins (desktop has 3-5)"
+    },
+    {
+      "testName": "AndroidTV: screen.colorDepth",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "24-bit (server: 32-bit)"
+    },
+    {
+      "testName": "AndroidTV: font list",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "[Roboto, Noto Sans, Droid Sans] (desktop: 50+ fonts)"
+    },
+    {
+      "testName": "Init script: valid JavaScript",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "4934 chars, no syntax errors"
+    },
+    {
+      "testName": "Tizen: IP in residential range",
+      "category": "profile",
+      "ip": "74.61.136.23",
+      "pass": true,
+      "detail": "74.61.136.23 — residential ISP range"
+    },
+    {
+      "testName": "Tizen: navigator.platform",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Linux armv7l (server would show \"Linux x86_64\")"
+    },
+    {
+      "testName": "Tizen: hardwareConcurrency",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "2 cores (server has 24+)"
+    },
+    {
+      "testName": "Tizen: deviceMemory",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "1.5 GB (server has 8+)"
+    },
+    {
+      "testName": "Tizen: WebGL renderer",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "ARM Mali-400 MP (server: NVIDIA)"
+    },
+    {
+      "testName": "Tizen: canvas noise (deterministic)",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "seed=114973736 (hash of deviceId)"
+    },
+    {
+      "testName": "Tizen: navigator.plugins",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "0 plugins (desktop has 3-5)"
+    },
+    {
+      "testName": "Tizen: screen.colorDepth",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "24-bit (server: 32-bit)"
+    },
+    {
+      "testName": "Tizen: font list",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "[Roboto, Noto Sans, Droid Sans] (desktop: 50+ fonts)"
+    },
+    {
+      "testName": "Init script: valid JavaScript",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "4934 chars, no syntax errors"
+    },
+    {
+      "testName": "WebOS: IP in residential range",
+      "category": "profile",
+      "ip": "47.138.165.17",
+      "pass": true,
+      "detail": "47.138.165.17 — residential ISP range"
+    },
+    {
+      "testName": "WebOS: navigator.platform",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Linux armv7l (server would show \"Linux x86_64\")"
+    },
+    {
+      "testName": "WebOS: hardwareConcurrency",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "4 cores (server has 24+)"
+    },
+    {
+      "testName": "WebOS: deviceMemory",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "2 GB (server has 8+)"
+    },
+    {
+      "testName": "WebOS: WebGL renderer",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "ARM Mali-T860 (server: NVIDIA)"
+    },
+    {
+      "testName": "WebOS: canvas noise (deterministic)",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "seed=4094940090 (hash of deviceId)"
+    },
+    {
+      "testName": "WebOS: navigator.plugins",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "0 plugins (desktop has 3-5)"
+    },
+    {
+      "testName": "WebOS: screen.colorDepth",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "24-bit (server: 32-bit)"
+    },
+    {
+      "testName": "WebOS: font list",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "[Roboto, Noto Sans, Droid Sans] (desktop: 50+ fonts)"
+    },
+    {
+      "testName": "Init script: valid JavaScript",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "4931 chars, no syntax errors"
+    },
+    {
+      "testName": "Chromium: --disable-blink-features=AutomationControlled",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Hides navigator.webdriver=true"
+    },
+    {
+      "testName": "Chromium: navigator.webdriver → false",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Spoofed via init script"
+    },
+    {
+      "testName": "Chromium: navigator.plugins → []",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "Empty plugin list (TV has none)"
+    },
+    {
+      "testName": "Chromium: window.devicePixelRatio → 1",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "TV screens are 1:1"
+    },
+    {
+      "testName": "Chromium: screen.availWidth = screen.width",
+      "category": "fingerprint",
+      "pass": true,
+      "detail": "No taskbar on TV"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "id": "3388.4icecnt2d7b2qj1angi3",
+  "at": 1,
+  "cur": [
+    "USD"
+  ],
+  "ext": {},
+  "bcat": [
+    "IAB26"
+  ],
+  "device": {
+    "ua": "Mozilla/5.0 (Linux; Android 14; CPH2357 Build/UKQ1.230924.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.186 Mobile Safari/537.36",
+    "ifa": "c75583e2-4f09-4ec8-8717-7cf1b4a48b9f",
+    "ip": "99.118.13.216",
+    "os": "android",
+    "osv": "14",
+    "devicetype": 4,
+    "carrier": "AT&T Internet",
+    "ext": {
+      "ifa_type": "aaid"
+    },
+    "language": "en",
+    "geo": {
+      "country": "USA",
+      "lat": 34.9446,
+      "lon": -82.2214,
+      "region": "SC",
+      "metro": "567",
+      "city": "Greer",
+      "zip": "29651",
+      "type": 2,
+      "accuracy": 20,
+      "ipservice": 3
+    }
+  },
+  "app": {
+    "id": "0a873ef948",
+    "bundle": "com.decor.life",
+    "storeurl": "https://play.google.com/store/apps/details?id=com.decor.life",
+    "name": "Decor Life - Home Design Game",
+    "publisher": {
+      "id": "915c610a4a"
+    }
+  },
+  "user": {
+    "id": "00064c951cb90e9d",
+    "ext": {}
+  },
+  "regs": {
+    "ext": {
+      "us_privacy": "1YNN"
+    },
+    "coppa": 0
+  },
+  "source": {},
+  "imp": [
+    {
+      "id": "1",
+      "bidfloorcur": "USD",
+      "secure": 1,
+      "video": {
+        "mimes": [
+          "video/mp4",
+          "video/x-flv",
+          "video/webm",
+          "application/x-mpegURL",
+          "video/ogg",
+          "video/3gpp",
+          "video/quicktime",
+          "video/x-msvideo",
+          "video/x-ms-wmv"
+        ],
+        "w": 768,
+        "h": 1024,
+        "protocols": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "minduration": 3,
+        "maxduration": 300,
+        "startdelay": 0,
+        "linearity": 1,
+        "sequence": 1,
+        "boxingallowed": 1,
+        "playbackmethod": [
+          1,
+          2,
+          5,
+          6
+        ],
+        "api": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 2.1
+    }
+  ],
+  "tmax": 1350
+}
