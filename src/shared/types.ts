@@ -21,8 +21,39 @@ export const ERROR_STATES = [
   SessionState.ERROR_TIMEOUT,
 ] as const;
 
+export interface FingerprintProfile {
+  platform: string;
+  hwConcurrency: number;
+  deviceMemory: number;
+  maxTouchPoints: number;
+  connection: { type: string; downlink: number; rtt: number; effectiveType: string };
+  screen: { colorDepth: number; pixelDepth: number };
+  webgl: { vendor: string; renderer: string };
+  canvasNoiseSeed: number;
+  audioNoiseSeed: number;
+  fonts: string[];
+  plugins: number;
+  storageQuota: number;
+}
+
+// OpenRTB-compatible geo object (matches DSP sample format)
+export interface GeoData {
+  country?: string;   // ISO alpha-3 (e.g. "USA")
+  lat?: number;
+  lon?: number;
+  region?: string;    // ISO subdivision (e.g. "SC" for South Carolina)
+  metro?: string;     // Nielsen DMA code (e.g. "567")
+  city?: string;      // City name (e.g. "Greer")
+  zip?: string;       // Postal code (e.g. "29651")
+  type?: number;      // 2 = IP-based
+  accuracy?: number;  // Accuracy radius in km
+  ipservice?: number; // IP geo provider (3 = MaxMind)
+  utcoffset?: number; // UTC offset in minutes
+}
+
 export interface DeviceProfile {
   os: 'AndroidTV' | 'Tizen' | 'WebOS';
+  osv: string;
   vendor: string;
   model: string;
   screenWidth: number;
@@ -31,10 +62,12 @@ export interface DeviceProfile {
   ifa: string;
   ip: string;
   carrier?: string;
-  networkType: '3G' | '4G' | 'WiFi';
+  networkType: '3G' | '4G' | 'WiFi' | 'Ethernet';
+  language: string;
   userAgent: string;
   timezone: string;
-  geo?: { lat: number; lon: number };
+  geo?: GeoData;
+  fingerprint?: FingerprintProfile;
 }
 
 export interface SessionConfig {
@@ -44,7 +77,15 @@ export interface SessionConfig {
   appBundle: string;
   appName: string;
   appStoreUrl: string;
+  appVersion?: string;
+  appId?: string;
+  publisherId?: string;
+  publisherName?: string;
+  bidfloor?: number;
   networkEmulation?: NetworkProfile;
+  bcat?: string[];
+  userId?: string;
+  proxy?: string; // http://user:pass@host:port or socks5://user:pass@host:port
 }
 
 export interface NetworkProfile {
@@ -81,7 +122,8 @@ export type TrackingEventType =
   | 'midpoint'
   | 'thirdQuartile'
   | 'complete'
-  | 'error';
+  | 'error'
+  | 'click';
 
 export interface NetworkLogEntry {
   sessionId: string;
@@ -103,7 +145,8 @@ export type WorkerToMasterMessage =
   | { type: 'session-update'; sessionId: string; state: SessionState; metrics?: Record<string, number> }
   | { type: 'session-error'; sessionId: string; error: string; state: SessionState }
   | { type: 'session-stopped'; sessionId: string }
-  | { type: 'worker-stats'; activeSessions: number; totalProcessed: number; memoryUsage: number };
+  | { type: 'worker-stats'; activeSessions: number; totalProcessed: number; memoryUsage: number }
+  | { type: 'worker-ready' };
 
 export interface WorkerInfo {
   id: number;
@@ -111,7 +154,7 @@ export interface WorkerInfo {
   activeSessions: number;
   totalProcessed: number;
   memoryUsage: number;
-  status: 'running' | 'restarting' | 'dead';
+  status: 'starting' | 'running' | 'restarting' | 'dead';
 }
 
 export interface VastCreative {
@@ -120,10 +163,17 @@ export interface VastCreative {
   trackingEvents: Map<TrackingEventType, string[]>;
   impressionUrls: string[];
   errorUrls: string[];
+  clickThroughUrl?: string;
+  clickTrackingUrls: string[];
 }
 
 export interface RtbBidRequest {
   id: string;
+  at?: number;
+  tmax?: number;
+  cur?: string[];
+  ext?: Record<string, unknown>;
+  bcat?: string[];
   imp: Array<{
     id: string;
     video: {
@@ -133,15 +183,28 @@ export interface RtbBidRequest {
       h: number;
       linearity: number;
       startdelay: number;
-      plcmt: number;
+      plcmt?: number;
       minduration?: number;
       maxduration?: number;
+      sequence?: number;
+      boxingallowed?: number;
+      playbackmethod?: number[];
+      api?: number[];
     };
+    bidfloor?: number;
+    bidfloorcur?: string;
+    secure?: number;
+    displaymanager?: string;
+    displaymanagerver?: string;
   }>;
   app: {
+    id?: string;
     bundle: string;
     name: string;
     storeurl: string;
+    ver?: string;
+    publisher?: { id: string; name?: string };
+    content?: { language?: string; livestream?: number };
   };
   device: {
     ua: string;
@@ -152,26 +215,72 @@ export interface RtbBidRequest {
     ifa: string;
     os: string;
     osv?: string;
+    language?: string;
+    js?: number;
     w: number;
     h: number;
     connectiontype?: number;
     carrier?: string;
-    geo?: { lat: number; lon: number };
+    geo?: GeoData;
+    ext?: Record<string, unknown>;
   };
-  at?: number;
-  tmax?: number;
-  cur?: string[];
+  user?: {
+    id: string;
+    ext?: Record<string, unknown>;
+  };
+  source?: Record<string, unknown>;
+  regs?: {
+    coppa?: number;
+    ext?: {
+      gdpr?: number;
+      us_privacy?: string;
+    };
+  };
 }
 
+// Extended bid response with nurl/burl/lurl support
 export interface RtbBidResponse {
   id: string;
   seatbid?: Array<{
+    seat?: string;
     bid: Array<{
       id: string;
       impid: string;
       adm: string;
       price: number;
+      nurl?: string;
+      burl?: string;
+      lurl?: string;
+      adomain?: string[];
+      crid?: string;
+      cid?: string;
+      cat?: string[];
+      w?: number;
+      h?: number;
+      ext?: Record<string, unknown>;
     }>;
   }>;
+  cur?: string;
   nbr?: number;
+}
+
+// Auction data for macro substitution in nurl/burl/lurl
+export interface AuctionData {
+  auctionId: string;
+  bidId: string;
+  impId: string;
+  seatId: string;
+  adId: string;
+  price: number;
+  currency: string;
+  loss?: number;
+}
+
+// Result of bid extraction — includes VAST + auction context for notifications
+export interface BidResult {
+  vastXml: string;
+  auctionData: AuctionData;
+  nurl?: string;
+  burl?: string;
+  lurl?: string;
 }
