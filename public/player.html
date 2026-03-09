@@ -114,12 +114,25 @@
       contentVideo.src = '';
     }
 
+    function simulateClick() {
+      var rect = adVideo.getBoundingClientRect();
+      var x = rect.left + rect.width * (0.3 + Math.random() * 0.4);
+      var y = rect.top + rect.height * (0.3 + Math.random() * 0.4);
+      var opts = { bubbles: true, clientX: x, clientY: y, button: 0 };
+      adVideo.dispatchEvent(new PointerEvent('pointerdown', opts));
+      adVideo.dispatchEvent(new MouseEvent('mousedown', opts));
+      adVideo.dispatchEvent(new PointerEvent('pointerup', opts));
+      adVideo.dispatchEvent(new MouseEvent('mouseup', opts));
+      adVideo.dispatchEvent(new MouseEvent('click', opts));
+    }
+
     window.__initShaka = initShaka;
     window.__loadAd = loadAd;
     window.__loadContent = loadContent;
     window.__getAdCurrentTime = getAdCurrentTime;
     window.__getAdDuration = getAdDuration;
     window.__stopAll = stopAll;
+    window.__simulateClick = simulateClick;
     window.__adCompleted = false;
     window.__contentPlaying = false;
     window.__playerReady = false;

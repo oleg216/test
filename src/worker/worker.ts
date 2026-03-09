@@ -6,16 +6,19 @@ import { createLogger } from '../shared/logger.js';
 import { BrowserPool } from './browser-pool.js';
 import { SessionStateMachine } from './session.js';
 import { setupNetworkInterceptor } from './network-interceptor.js';
-import { sendBidRequest, extractVastFromBidResponse } from '../engines/rtb-adapter.js';
+import { sendBidRequest, extractBidResult, fireWinNotice, fireBillingNotice } from '../engines/rtb-adapter.js';
+import { initGeoDb } from '../shared/geo-lookup.js';
 import { resolveVast } from '../engines/vast-resolver.js';
 import { buildTimeline, AdTimelineScheduler } from '../engines/ad-timeline.js';
 import { TrackingEngine } from '../engines/tracking-engine.js';
 import { SessionState } from '../shared/types.js';
-import type { MasterToWorkerMessage, WorkerToMasterMessage, NetworkLogEntry } from '../shared/types.js';
+import type { MasterToWorkerMessage, WorkerToMasterMessage, NetworkLogEntry, BidResult } from '../shared/types.js';
+import { PixalateChecker } from '../engines/pixalate-checker.js';
 
 const logger = createLogger('worker');
 
 const browserPool = new BrowserPool();
+const pixalate = new PixalateChecker();
 const sessions = new Map<string, SessionStateMachine>();
 const timelines = new Map<string, AdTimelineScheduler>();
 const trackingEngines = new Map<string, TrackingEngine>();
@@ -67,29 +70,67 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     await page.goto(`file://${playerPath}`);
     await page.waitForFunction(() => (window as any).__playerReady === true, { timeout: 10000 });
 
+    // Pre-RTB fraud check (non-blocking — log only)
+    if (pixalate.enabled) {
+      const fraudCheck = await pixalate.checkSession({
+        ip: config.payload.device.ip,
+        ua: config.payload.device.userAgent,
+        deviceId: config.payload.device.ifa,
+      });
+      logger.info({ sessionId, probability: fraudCheck.probability, pass: fraudCheck.pass }, 'Pixalate pre-bid check');
+      if (!fraudCheck.pass) {
+        logger.warn({ sessionId, probability: fraudCheck.probability }, 'Pixalate fraud probability above threshold — proceeding anyway');
+      }
+    }
+
     // RTB REQUESTING
     sm.transition(SessionState.RTB_REQUESTING);
     sendToMaster({ type: 'session-update', sessionId, state: sm.state });
 
-    let vastXml: string;
+    let bidResult: BidResult;
     try {
+      const rtbStart = Date.now();
       const bidResponse = await sendBidRequest(config.payload);
-      const vast = extractVastFromBidResponse(bidResponse);
-      if (!vast) throw new Error('No VAST in bid response');
-      vastXml = vast;
+      const rtbLatency = Date.now() - rtbStart;
+      const result = extractBidResult(bidResponse);
+      if (!result) {
+        // Report no-bid + latency to master
+        sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { no_bid: 1, rtb_latency_ms: rtbLatency } });
+        throw new Error('No VAST in bid response');
+      }
+      bidResult = result;
+      // Report bid price + latency to master
+      sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: {
+        bid_price: bidResult.auctionData.price,
+        rtb_latency_ms: rtbLatency,
+      } });
     } catch (err) {
       if (sm.canRetry()) {
         sm.incrementRetry();
         logger.warn({ sessionId, retry: sm.retryCount }, 'RTB failed, retrying');
+        const rtbStart = Date.now();
         const bidResponse = await sendBidRequest(config.payload);
-        const vast = extractVastFromBidResponse(bidResponse);
-        if (!vast) throw new Error('No VAST in bid response after retry');
-        vastXml = vast;
+        const rtbLatency = Date.now() - rtbStart;
+        const result = extractBidResult(bidResponse);
+        if (!result) {
+          sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { no_bid: 1, rtb_latency_ms: rtbLatency } });
+          throw new Error('No VAST in bid response after retry');
+        }
+        bidResult = result;
+        sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: {
+          bid_price: bidResult.auctionData.price,
+          rtb_latency_ms: rtbLatency,
+        } });
       } else {
         sm.setError(SessionState.ERROR_NETWORK, (err as Error).message);
         sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
         return;
       }
+    }
+
+    // Fire win notification (nurl) — fire-and-forget, don't block session
+    if (bidResult.nurl) {
+      fireWinNotice(bidResult.nurl, bidResult.auctionData).catch(() => {});
     }
 
     // VAST RESOLVING
@@ -98,7 +139,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
 
     let creative;
     try {
-      creative = await resolveVast(vastXml);
+      creative = await resolveVast(bidResult.vastXml);
     } catch (err) {
       sm.setError(SessionState.ERROR_VAST, (err as Error).message);
       sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
@@ -136,21 +177,51 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     trackingEngines.set(sessionId, trackingEngine);
 
     const timeline = buildTimeline(creative.duration);
+    const hasComplete = timeline.some(e => e.event === 'complete');
+    const lastEntryMs = timeline[timeline.length - 1].timeMs;
     const scheduler = new AdTimelineScheduler();
     timelines.set(sessionId, scheduler);
 
     scheduler.schedule(timeline, async (event) => {
-      const urls = event === 'impression'
-        ? creative.impressionUrls
-        : creative.trackingEvents.get(event) || [];
-      await trackingEngine.fireEvent(event, urls);
+      if (event === 'click') {
+        // Simulate DOM click event on the ad video
+        await page.evaluate(() => (window as any).__simulateClick());
+        // Fire click tracking pixels
+        if (creative.clickTrackingUrls.length > 0) {
+          await trackingEngine.fireEvent('click', creative.clickTrackingUrls);
+        }
+        // Simulate landing page open (GET on ClickThrough URL)
+        if (creative.clickThroughUrl) {
+          try {
+            await fetch(creative.clickThroughUrl, { method: 'GET', redirect: 'follow' });
+          } catch {
+            logger.warn({ sessionId, url: creative.clickThroughUrl }, 'ClickThrough fetch failed');
+          }
+        }
+      } else {
+        const urls = event === 'impression'
+          ? creative.impressionUrls
+          : creative.trackingEvents.get(event) || [];
+        await trackingEngine.fireEvent(event, urls);
+
+        // Fire billing notice (burl) after impression — confirms ad was rendered
+        if (event === 'impression' && bidResult.burl) {
+          fireBillingNotice(bidResult.burl, bidResult.auctionData).catch(() => {});
+        }
+      }
       sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { [`tracking_${event}`]: 1 } });
     });
 
-    await page.waitForFunction(
-      () => (window as any).__adCompleted === true,
-      { timeout: (creative.duration + 10) * 1000 },
-    );
+    if (hasComplete) {
+      // Full view — wait for video to end
+      await page.waitForFunction(
+        () => (window as any).__adCompleted === true,
+        { timeout: (creative.duration + 10) * 1000 },
+      );
+    } else {
+      // Simulated abandon — wait until last tracked event fires + small delay, then skip
+      await new Promise(r => setTimeout(r, lastEntryMs + 2000));
+    }
 
     // CONTENT PLAYING
     sm.transition(SessionState.CONTENT_PLAYING);
@@ -220,8 +291,9 @@ process.on('message', async (msg: MasterToWorkerMessage) => {
 });
 
 (async () => {
-  await browserPool.init();
+  await Promise.all([browserPool.init(), initGeoDb()]);
   logger.info({ pid: process.pid }, 'Worker started');
+  sendToMaster({ type: 'worker-ready' });
   reportStats();
 })();
 

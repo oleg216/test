@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTV Emulator Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+    background: #0d1117;
+    color: #c9d1d9;
+    font-size: 14px;
+  }
+  .header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; color: #e6edf3; }
+  .header h1 span { color: #58a6ff; font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  select, button, input {
+    background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  select:hover, button:hover, input:hover { border-color: #58a6ff; }
+  button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  button.green { background: #238636; border-color: #238636; color: #fff; }
+  button.green:hover { background: #2ea043; }
+
+  /* Stats cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1px;
+    background: #30363d;
+    border-bottom: 1px solid #30363d;
+  }
+  .stat-card {
+    background: #161b22;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-card .label { font-size: 11px; color: #8b949e; text-transform: uppercase; font-weight: 600; }
+  .stat-card .value { font-size: 22px; font-weight: 700; color: #e6edf3; }
+  .stat-card .value.green { color: #52c41a; }
+  .stat-card .value.red { color: #f85149; }
+  .stat-card .value.blue { color: #58a6ff; }
+  .stat-card .value.purple { color: #bc8cff; }
+  .stat-card .value.yellow { color: #d29922; }
+
+  /* Tracking funnel */
+  .funnel-section {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 12px 20px;
+  }
+  .funnel-section h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+  .funnel-bar { display: flex; gap: 2px; align-items: end; height: 40px; }
+  .funnel-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .funnel-step .bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height 0.3s;
+  }
+  .funnel-step .lbl { font-size: 10px; color: #8b949e; }
+  .funnel-step .cnt { font-size: 12px; font-weight: 600; color: #e6edf3; }
+
+  /* Breakdown tables */
+  .breakdown-section {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 12px 20px;
+  }
+  .breakdown-section h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+  .breakdown-grid { display: flex; gap: 20px; flex-wrap: wrap; }
+  .breakdown-table { flex: 1; min-width: 280px; }
+  .breakdown-table table { width: 100%; border-collapse: collapse; }
+  .breakdown-table th {
+    text-align: left; font-size: 11px; color: #8b949e; font-weight: 600;
+    padding: 4px 8px; border-bottom: 1px solid #30363d;
+  }
+  .breakdown-table td { padding: 4px 8px; font-size: 12px; border-bottom: 1px solid #21262d; }
+  .fill-bar { display: inline-block; height: 8px; border-radius: 4px; background: #238636; min-width: 2px; }
+
+  /* Session log */
+  .log-section { padding: 0; }
+  .log-header {
+    background: #161b22;
+    padding: 8px 20px;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .log-header h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; font-weight: 600; }
+  table.log-table { width: 100%; border-collapse: collapse; }
+  .log-table thead th {
+    background: #161b22; position: sticky; top: 0; padding: 6px 10px;
+    text-align: left; font-size: 11px; font-weight: 600; color: #8b949e;
+    text-transform: uppercase; border-bottom: 1px solid #30363d; white-space: nowrap;
+  }
+  .log-table tbody tr { border-bottom: 1px solid #21262d; transition: background 0.15s; }
+  .log-table tbody tr:hover { background: #161b22; }
+  .log-table td { padding: 6px 10px; white-space: nowrap; font-size: 12px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 600;
+  }
+  .badge-running { background: #1c2d3b; color: #58a6ff; }
+  .badge-stopped { background: #1b4332; color: #52c41a; }
+  .badge-error { background: #3b1c1c; color: #f85149; }
+  .badge-created { background: #2d2d1c; color: #d29922; }
+
+  /* Launch panel */
+  .launch-panel {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 12px 20px;
+  }
+  .launch-panel h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+  .launch-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+  .launch-form .field { display: flex; flex-direction: column; gap: 2px; }
+  .launch-form .field label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .launch-form input, .launch-form select { width: 180px; }
+  .launch-form input.short { width: 70px; }
+
+  .empty { text-align: center; padding: 40px 20px; color: #484f58; font-size: 14px; }
+  .status-bar {
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 4px 20px; font-size: 11px; color: #8b949e;
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>CTV Emulator<span>&middot; Dashboard</span></h1>
+  <div class="controls">
+    <button onclick="refreshAll()">Refresh</button>
+    <button id="btnAuto" onclick="toggleAuto()">Auto: OFF</button>
+  </div>
+</div>
+
+<!-- Launch Panel -->
+<div class="launch-panel">
+  <h3>Launch Traffic</h3>
+  <div class="launch-form">
+    <div class="field">
+      <label>DSP Endpoint</label>
+      <input id="launchEndpoint" type="text" style="width:360px" placeholder="http://rtb.pixelimpact.live/?pid=..." value="">
+    </div>
+    <div class="field">
+      <label>Sessions</label>
+      <input id="launchCount" type="number" class="short" value="5" min="1" max="50">
+    </div>
+    <div class="field">
+      <label>App Bundle</label>
+      <input id="launchBundle" type="text" value="tv.pluto.android">
+    </div>
+    <div class="field">
+      <label>Bidfloor $</label>
+      <input id="launchFloor" type="number" class="short" value="2.0" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label>Proxy</label>
+      <input id="launchProxy" type="text" style="width:360px" placeholder="http://user:pass@host:port">
+    </div>
+    <div class="field">
+      <label>OS</label>
+      <select id="launchOs">
+        <option value="">All (round-robin)</option>
+        <option value="AndroidTV">AndroidTV</option>
+        <option value="Tizen">Tizen</option>
+        <option value="WebOS">WebOS</option>
+      </select>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:6px">
+        <input id="launchUsePool" type="checkbox"> Use IP Pool <span id="poolSize" style="color:#8b949e;font-size:11px"></span>
+      </label>
+    </div>
+    <button class="green" onclick="launchTraffic()">Launch</button>
+  </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><span class="label">Running</span><span class="value blue" id="vRunning">0</span></div>
+  <div class="stat-card"><span class="label">Total Sessions</span><span class="value" id="vTotal">0</span></div>
+  <div class="stat-card"><span class="label">Completed</span><span class="value green" id="vCompleted">0</span></div>
+  <div class="stat-card"><span class="label">Failed</span><span class="value red" id="vFailed">0</span></div>
+  <div class="stat-card"><span class="label">RTB Requests</span><span class="value" id="vRtbReq">0</span></div>
+  <div class="stat-card"><span class="label">Bids Received</span><span class="value green" id="vBids">0</span></div>
+  <div class="stat-card"><span class="label">No-Bids</span><span class="value red" id="vNoBids">0</span></div>
+  <div class="stat-card"><span class="label">Win Rate</span><span class="value blue" id="vWinRate">0%</span></div>
+  <div class="stat-card"><span class="label">Bid Revenue</span><span class="value green" id="vRevenue">$0</span></div>
+  <div class="stat-card"><span class="label">Avg CPM</span><span class="value yellow" id="vCPM">$0</span></div>
+  <div class="stat-card"><span class="label">Impressions</span><span class="value purple" id="vImpressions">0</span></div>
+  <div class="stat-card"><span class="label">Avg Latency</span><span class="value" id="vLatency">0ms</span></div>
+</div>
+
+<!-- Tracking Funnel -->
+<div class="funnel-section">
+  <h3>Tracking Funnel</h3>
+  <div class="funnel-bar" id="funnelBar"></div>
+</div>
+
+<!-- Breakdown -->
+<div class="breakdown-section" id="breakdownSection" style="display:none">
+  <h3>Breakdown</h3>
+  <div class="breakdown-grid">
+    <div class="breakdown-table" id="geoBreakdown"></div>
+    <div class="breakdown-table" id="appBreakdown"></div>
+    <div class="breakdown-table" id="deviceBreakdown"></div>
+  </div>
+</div>
+
+<!-- Session Log -->
+<div class="log-section">
+  <div class="log-header">
+    <h3>Recent Sessions</h3>
+    <select id="logLimit" onchange="refreshAll()">
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="200">200</option>
+    </select>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="log-table">
+      <thead><tr>
+        <th>Time</th><th>State</th><th>App</th><th>OS</th><th>Model</th>
+        <th>Geo</th><th>Bid $</th><th>Latency</th><th>Events</th><th>Duration</th>
+      </tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+  <div id="emptyState" class="empty" style="display:none">No sessions yet. Launch some traffic above.</div>
+</div>
+
+<div class="status-bar">
+  <span id="statusText">Loading...</span>
+  <span id="lastUpdate"></span>
+</div>
+
+<script>
+(function() {
+  var autoInterval = null;
+
+  function esc(s) { return s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function formatTime(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso);
+    var p = function(n) { return n < 10 ? '0' + n : n; };
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function stateBadge(state) {
+    if (!state) return '';
+    if (state === 'STOPPED') return '<span class="badge badge-stopped">DONE</span>';
+    if (state.startsWith('ERROR_')) return '<span class="badge badge-error">' + esc(state) + '</span>';
+    if (state === 'CREATED' || state === 'INITIALIZING') return '<span class="badge badge-created">' + esc(state) + '</span>';
+    return '<span class="badge badge-running">' + esc(state) + '</span>';
+  }
+
+  function latencyColor(ms) {
+    if (!ms) return '';
+    if (ms < 300) return 'color:#52c41a';
+    if (ms < 800) return 'color:#d29922';
+    return 'color:#f85149';
+  }
+
+  function renderStats(s) {
+    document.getElementById('vRunning').textContent = s.sessionsRunning;
+    document.getElementById('vTotal').textContent = s.sessionsTotal;
+    document.getElementById('vCompleted').textContent = s.sessionsCompleted;
+    document.getElementById('vFailed').textContent = s.sessionsFailed;
+    document.getElementById('vRtbReq').textContent = s.rtbRequests;
+    document.getElementById('vBids').textContent = s.bidsReceived;
+    document.getElementById('vNoBids').textContent = s.rtbNoBids;
+    document.getElementById('vWinRate').textContent = s.winRate;
+    document.getElementById('vRevenue').textContent = '$' + s.bidRevenue.toFixed(4);
+    document.getElementById('vCPM').textContent = '$' + s.avgCPM.toFixed(2);
+    document.getElementById('vImpressions').textContent = s.impressions;
+    document.getElementById('vLatency').textContent = s.avgLatencyMs + 'ms';
+
+    // Funnel
+    var funnel = [
+      { lbl: 'RTB', cnt: s.rtbRequests, color: '#58a6ff' },
+      { lbl: 'Bids', cnt: s.bidsReceived, color: '#238636' },
+      { lbl: 'Impr', cnt: s.impressions, color: '#bc8cff' },
+      { lbl: 'Start', cnt: s.starts, color: '#79c0ff' },
+      { lbl: 'Q1', cnt: s.firstQuartiles, color: '#56d4dd' },
+      { lbl: 'Mid', cnt: s.midpoints, color: '#d29922' },
+      { lbl: 'Q3', cnt: s.thirdQuartiles, color: '#db6d28' },
+      { lbl: 'Done', cnt: s.completes, color: '#52c41a' },
+      { lbl: 'Click', cnt: s.clicks, color: '#f85149' },
+    ];
+    var maxCnt = Math.max.apply(null, funnel.map(function(f) { return f.cnt; })) || 1;
+    var funnelHtml = '';
+    for (var i = 0; i < funnel.length; i++) {
+      var h = Math.max(2, Math.round((funnel[i].cnt / maxCnt) * 36));
+      funnelHtml += '<div class="funnel-step">'
+        + '<div class="cnt">' + funnel[i].cnt + '</div>'
+        + '<div class="bar" style="height:' + h + 'px;background:' + funnel[i].color + '"></div>'
+        + '<div class="lbl">' + funnel[i].lbl + '</div>'
+        + '</div>';
+    }
+    document.getElementById('funnelBar').innerHTML = funnelHtml;
+
+    // Breakdown tables
+    var hasBreakdown = Object.keys(s.byGeo || {}).length > 0 || Object.keys(s.byApp || {}).length > 0;
+    document.getElementById('breakdownSection').style.display = hasBreakdown ? '' : 'none';
+
+    if (s.byGeo && Object.keys(s.byGeo).length > 0) {
+      var gh = '<table><thead><tr><th>Geo</th><th>Req</th><th>Bids</th><th>Impr</th><th>Fill</th></tr></thead><tbody>';
+      var gKeys = Object.keys(s.byGeo).sort(function(a, b) { return (s.byGeo[b].requests || 0) - (s.byGeo[a].requests || 0); });
+      for (var g = 0; g < gKeys.length; g++) {
+        var gv = s.byGeo[gKeys[g]];
+        var fill = gv.requests > 0 ? ((gv.bids / gv.requests) * 100).toFixed(0) + '%' : '0%';
+        var fw = gv.requests > 0 ? Math.round((gv.bids / gv.requests) * 60) : 0;
+        gh += '<tr><td>' + esc(gKeys[g]) + '</td><td>' + gv.requests + '</td><td>' + gv.bids + '</td><td>' + gv.impressions + '</td>'
+          + '<td>' + fill + ' <span class="fill-bar" style="width:' + fw + 'px"></span></td></tr>';
+      }
+      gh += '</tbody></table>';
+      document.getElementById('geoBreakdown').innerHTML = gh;
+    }
+
+    if (s.byApp && Object.keys(s.byApp).length > 0) {
+      var ah = '<table><thead><tr><th>App</th><th>Req</th><th>Bids</th><th>Impr</th></tr></thead><tbody>';
+      var aKeys = Object.keys(s.byApp).sort(function(a, b) { return (s.byApp[b].requests || 0) - (s.byApp[a].requests || 0); });
+      for (var a = 0; a < aKeys.length; a++) {
+        var av = s.byApp[aKeys[a]];
+        ah += '<tr><td>' + esc(aKeys[a]) + '</td><td>' + av.requests + '</td><td>' + av.bids + '</td><td>' + av.impressions + '</td></tr>';
+      }
+      ah += '</tbody></table>';
+      document.getElementById('appBreakdown').innerHTML = ah;
+    }
+
+    if (s.byDevice && Object.keys(s.byDevice).length > 0) {
+      var dh = '<table><thead><tr><th>Device OS</th><th>Req</th><th>Bids</th></tr></thead><tbody>';
+      var dKeys = Object.keys(s.byDevice).sort();
+      for (var d = 0; d < dKeys.length; d++) {
+        var dv = s.byDevice[dKeys[d]];
+        dh += '<tr><td>' + esc(dKeys[d]) + '</td><td>' + dv.requests + '</td><td>' + dv.bids + '</td></tr>';
+      }
+      dh += '</tbody></table>';
+      document.getElementById('deviceBreakdown').innerHTML = dh;
+    }
+  }
+
+  function renderSessions(sessions) {
+    var logBody = document.getElementById('logBody');
+    var emptyState = document.getElementById('emptyState');
+    if (!sessions.length) {
+      logBody.innerHTML = '';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    var html = '';
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      var evts = (s.events || []).join(', ');
+      var dur = s.durationMs ? (s.durationMs / 1000).toFixed(1) + 's' : '\u2014';
+      html += '<tr>'
+        + '<td>' + esc(formatTime(s.createdAt)) + '</td>'
+        + '<td>' + stateBadge(s.state) + '</td>'
+        + '<td>' + esc(s.appBundle || '') + '</td>'
+        + '<td>' + esc(s.deviceOs || '') + '</td>'
+        + '<td>' + esc(s.deviceModel || '') + '</td>'
+        + '<td>' + esc(s.geo || '') + (s.city ? ' / ' + esc(s.city) : '') + '</td>'
+        + '<td>' + (s.bidPrice ? '$' + s.bidPrice.toFixed(4) : '\u2014') + '</td>'
+        + '<td style="' + latencyColor(s.latencyMs) + '">' + (s.latencyMs ? s.latencyMs + 'ms' : '\u2014') + '</td>'
+        + '<td style="font-size:10px;color:#8b949e">' + esc(evts) + '</td>'
+        + '<td>' + dur + '</td>'
+        + '</tr>';
+    }
+    logBody.innerHTML = html;
+  }
+
+  window.refreshAll = function() {
+    document.getElementById('statusText').textContent = 'Loading...';
+    var limit = document.getElementById('logLimit').value || '100';
+
+    Promise.all([
+      fetch('/api/stats').then(function(r) { return r.json(); }),
+      fetch('/api/stats/sessions?limit=' + limit).then(function(r) { return r.json(); }),
+      fetch('/api/pool').then(function(r) { return r.json(); }).catch(function() { return { size: 0 }; }),
+    ]).then(function(results) {
+      renderStats(results[0]);
+      renderSessions(results[1].sessions || []);
+      var ps = results[2].size || 0;
+      document.getElementById('poolSize').textContent = ps > 0 ? '(' + ps + ' users)' : '(empty)';
+      document.getElementById('statusText').textContent = 'OK';
+      document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }).catch(function(err) {
+      document.getElementById('statusText').textContent = 'Error: ' + err.message;
+    });
+  };
+
+  window.toggleAuto = function() {
+    var btn = document.getElementById('btnAuto');
+    if (autoInterval) {
+      clearInterval(autoInterval);
+      autoInterval = null;
+      btn.textContent = 'Auto: OFF';
+      btn.classList.remove('active');
+    } else {
+      autoInterval = setInterval(window.refreshAll, 3000);
+      btn.textContent = 'Auto: ON (3s)';
+      btn.classList.add('active');
+    }
+  };
+
+  window.launchTraffic = function() {
+    var endpoint = document.getElementById('launchEndpoint').value.trim();
+    if (!endpoint) { alert('Enter DSP endpoint'); return; }
+
+    var body = {
+      rtbEndpoint: endpoint,
+      count: parseInt(document.getElementById('launchCount').value) || 5,
+      appBundle: document.getElementById('launchBundle').value.trim() || 'tv.pluto.android',
+      bidfloor: parseFloat(document.getElementById('launchFloor').value) || 2.0,
+    };
+    var os = document.getElementById('launchOs').value;
+    if (os) body.os = os;
+    if (document.getElementById('launchUsePool').checked) body.usePool = true;
+    var proxy = document.getElementById('launchProxy').value.trim();
+    if (proxy) body.proxy = proxy;
+
+    fetch('/api/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        alert('Error: ' + data.error);
+      } else {
+        document.getElementById('statusText').textContent = 'Launched ' + data.launched + ' sessions';
+        setTimeout(window.refreshAll, 1000);
+      }
+    })
+    .catch(function(err) { alert('Failed: ' + err.message); });
+  };
+
+  // Initial load
+  window.refreshAll();
+})();
+</script>
+</body>
+</html>

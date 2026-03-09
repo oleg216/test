@@ -12,7 +12,7 @@ interface WorkerHandle {
   activeSessions: number;
   totalProcessed: number;
   memoryUsage: number;
-  status: 'running' | 'restarting' | 'dead';
+  status: 'starting' | 'running' | 'restarting' | 'dead';
   sessionIds: Set<string>;
 }
 
@@ -27,13 +27,15 @@ export class WorkerManager {
 
   async start(count?: number): Promise<void> {
     const numWorkers = Math.min(count || MAX_WORKERS, MAX_WORKERS);
+    const readyPromises: Promise<void>[] = [];
     for (let i = 0; i < numWorkers; i++) {
-      this.spawnWorker();
+      readyPromises.push(this.spawnWorker());
     }
-    logger.info({ count: numWorkers }, 'Workers started');
+    await Promise.all(readyPromises);
+    logger.info({ count: numWorkers }, 'All workers ready');
   }
 
-  private spawnWorker(): WorkerHandle {
+  private spawnWorker(): Promise<void> {
     const id = this.nextId++;
     const workerPath = resolve(process.cwd(), 'dist', 'worker', 'worker.js');
     const child = fork(workerPath, [], {
@@ -47,11 +49,30 @@ export class WorkerManager {
       activeSessions: 0,
       totalProcessed: 0,
       memoryUsage: 0,
-      status: 'running',
+      status: 'starting',
       sessionIds: new Set(),
     };
 
+    const readyPromise = new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        logger.warn({ workerId: id }, 'Worker ready timeout, marking as running');
+        handle.status = 'running';
+        resolve();
+      }, 30000);
+
+      child.on('message', function onReady(msg: WorkerToMasterMessage) {
+        if (msg.type === 'worker-ready') {
+          clearTimeout(timeout);
+          handle.status = 'running';
+          logger.info({ workerId: id }, 'Worker ready');
+          child.removeListener('message', onReady);
+          resolve();
+        }
+      });
+    });
+
     child.on('message', (msg: WorkerToMasterMessage) => {
+      if (msg.type === 'worker-ready') return; // handled above
       if (msg.type === 'worker-stats') {
         handle.activeSessions = msg.activeSessions;
         handle.totalProcessed = msg.totalProcessed;
@@ -79,7 +100,7 @@ export class WorkerManager {
     });
 
     this.workers.set(id, handle);
-    return handle;
+    return readyPromise;
   }
 
   private restartWorker(id: number): void {

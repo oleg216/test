@@ -1,15 +1,33 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createLogger } from '../shared/logger.js';
-import { PORT } from '../shared/constants.js';
+import { PORT, DEFAULT_PROXY } from '../shared/constants.js';
+import { initGeoDb } from '../shared/geo-lookup.js';
 import { SessionConfigSchema, BatchSessionSchema } from '../shared/schemas.js';
 import { MetricsRegistry } from './metrics.js';
 import { WorkerManager } from './worker-manager.js';
 import { SessionScheduler } from './scheduler.js';
+import { generateDeviceProfile } from '../emulation/device-profiles.js';
+import { loadUserPool, getRandomPoolUser, buildDeviceFromPoolUser, getPoolSize } from '../emulation/user-pool.js';
+import type { SessionConfig } from '../shared/types.js';
 
 const logger = createLogger('server');
 
+// Load dashboard HTML once at startup
+let dashboardHtml = '';
+try {
+  dashboardHtml = readFileSync(resolve(process.cwd(), 'public', 'dashboard.html'), 'utf-8');
+} catch {
+  logger.warn('dashboard.html not found in public/');
+}
+
+// Load user pool at startup
+loadUserPool();
+
 export async function startMaster(): Promise<void> {
+  await initGeoDb();
   const metrics = new MetricsRegistry();
   const workerManager = new WorkerManager((msg) => {
     scheduler.handleWorkerMessage(msg);
@@ -19,6 +37,7 @@ export async function startMaster(): Promise<void> {
   const app = Fastify({ logger: false });
   await app.register(cors);
 
+  // --- Health & Metrics ---
   app.get('/health', async () => ({ status: 'ok', uptime: process.uptime() }));
 
   app.get('/metrics', async (request, reply) => {
@@ -27,6 +46,23 @@ export async function startMaster(): Promise<void> {
     reply.type(contentType).send(metricsText);
   });
 
+  // --- Dashboard ---
+  app.get('/dashboard', async (request, reply) => {
+    reply.type('text/html').send(dashboardHtml);
+  });
+
+  // --- Stats API (JSON for dashboard) ---
+  app.get('/api/stats', async () => {
+    return metrics.getStats();
+  });
+
+  app.get('/api/stats/sessions', async (request) => {
+    const query = request.query as { limit?: string };
+    const limit = Math.min(parseInt(query.limit || '100', 10), 500);
+    return { sessions: metrics.getRecentSessions(limit) };
+  });
+
+  // --- Session Management ---
   app.post('/api/sessions', async (request, reply) => {
     const parsed = SessionConfigSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -78,6 +114,91 @@ export async function startMaster(): Promise<void> {
 
   app.get('/api/workers', async () => {
     return { workers: workerManager.getWorkersInfo() };
+  });
+
+  // --- Traffic Launch API ---
+  // Quick launch: auto-generate device profiles and start sessions
+  app.post('/api/launch', async (request, reply) => {
+    const body = request.body as {
+      count?: number;
+      rtbEndpoint: string;
+      contentUrl?: string;
+      appBundle?: string;
+      appName?: string;
+      appStoreUrl?: string;
+      appVersion?: string;
+      appId?: string;
+      publisherId?: string;
+      publisherName?: string;
+      bidfloor?: number;
+      bcat?: string[];
+      os?: 'AndroidTV' | 'Tizen' | 'WebOS';
+      usePool?: boolean;
+      proxy?: string;
+    };
+
+    if (!body.rtbEndpoint) {
+      return reply.status(400).send({ error: 'rtbEndpoint is required' });
+    }
+
+    if (body.usePool && getPoolSize() === 0) {
+      return reply.status(400).send({ error: 'User pool is empty. Place users.csv in data/' });
+    }
+
+    const count = Math.min(body.count || 1, 50);
+    const osList: Array<'AndroidTV' | 'Tizen' | 'WebOS'> = body.os
+      ? [body.os]
+      : ['AndroidTV', 'Tizen', 'WebOS'];
+
+    const configs: SessionConfig[] = [];
+    for (let i = 0; i < count; i++) {
+      const os = osList[i % osList.length];
+      let device;
+      if (body.usePool) {
+        const poolUser = getRandomPoolUser()!;
+        device = buildDeviceFromPoolUser(poolUser, os);
+      } else {
+        device = generateDeviceProfile(os);
+      }
+
+      const proxy = body.proxy || DEFAULT_PROXY || undefined;
+
+      configs.push({
+        device,
+        rtbEndpoint: body.rtbEndpoint,
+        contentUrl: body.contentUrl || 'https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd',
+        appBundle: body.appBundle || 'tv.pluto.android',
+        appName: body.appName || 'Pluto TV - Live TV & Movies',
+        appStoreUrl: body.appStoreUrl || 'https://play.google.com/store/apps/details?id=tv.pluto.android',
+        appVersion: body.appVersion,
+        appId: body.appId,
+        publisherId: body.publisherId,
+        publisherName: body.publisherName,
+        bidfloor: body.bidfloor ?? 2.0,
+        bcat: body.bcat,
+        proxy,
+      });
+    }
+
+    try {
+      const sessions = scheduler.createBatch(configs);
+      return reply.status(201).send({
+        launched: sessions.length,
+        sessions: sessions.map(s => ({ id: s.id, device: s.config.device.os, model: s.config.device.model })),
+      });
+    } catch (err) {
+      return reply.status(503).send({ error: (err as Error).message });
+    }
+  });
+
+  // --- User Pool API ---
+  app.get('/api/pool', async () => {
+    return { size: getPoolSize() };
+  });
+
+  app.post('/api/pool/reload', async () => {
+    const users = loadUserPool();
+    return { loaded: users.length };
   });
 
   await workerManager.start();

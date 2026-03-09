@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { createLogger } from '../shared/logger.js';
 import type { DeviceProfile, NetworkProfile } from '../shared/types.js';
+import { buildFingerprintScript } from '../emulation/fingerprint-spoof.js';
 
 const logger = createLogger('browser-pool');
 
@@ -11,8 +12,13 @@ export class BrowserPool {
   async init(): Promise<void> {
     this.browser = await chromium.launch({
       headless: true,
-      channel: 'chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--autoplay-policy=no-user-gesture-required'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--autoplay-policy=no-user-gesture-required',
+        '--disable-blink-features=AutomationControlled',
+      ],
     });
     logger.info('Browser launched');
   }
@@ -29,9 +35,16 @@ export class BrowserPool {
       viewport: { width: device.screenWidth, height: device.screenHeight },
       locale: 'en-US',
       timezoneId: device.timezone,
-      geolocation: device.geo ? { latitude: device.geo.lat, longitude: device.geo.lon } : undefined,
-      permissions: device.geo ? ['geolocation'] : [],
+      geolocation: device.geo?.lat != null && device.geo?.lon != null
+        ? { latitude: device.geo.lat, longitude: device.geo.lon }
+        : undefined,
+      permissions: device.geo?.lat != null ? ['geolocation'] : [],
     });
+
+    // Inject fingerprint spoof before any page loads
+    if (device.fingerprint) {
+      await context.addInitScript(buildFingerprintScript(device.fingerprint));
+    }
 
     if (networkEmulation) {
       const cdpSession = await context.newCDPSession(await context.newPage());
