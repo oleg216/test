@@ -9,12 +9,41 @@ describe('device profiles', () => {
     expect(DEVICE_PRESETS.WebOS).toBeDefined();
   });
 
-  it('generates a valid device profile', () => {
+  it('Samsung is only in Tizen, not AndroidTV', () => {
+    const androidVendors = DEVICE_PRESETS.AndroidTV.vendors.map(v => v.vendor);
+    const tizenVendors = DEVICE_PRESETS.Tizen.vendors.map(v => v.vendor);
+    expect(androidVendors).not.toContain('Samsung');
+    expect(tizenVendors).toContain('Samsung');
+  });
+
+  it('generates a valid device profile with all required fields', () => {
     const profile = generateDeviceProfile('AndroidTV');
     expect(profile.os).toBe('AndroidTV');
+    expect(profile.osv).toBeTruthy();
+    expect(profile.language).toBeTruthy();
     expect(profile.deviceId).toBeTruthy();
     expect(profile.ifa).toBeTruthy();
     expect(profile.screenWidth).toBeGreaterThan(0);
+    expect(profile.geo).toBeDefined();
+    expect(profile.timezone).toBeTruthy();
+  });
+
+  it('generates varied network types', () => {
+    const types = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      types.add(generateDeviceProfile('AndroidTV').networkType);
+    }
+    expect(types.has('WiFi')).toBe(true);
+    // Ethernet should appear in ~15% of 100 samples
+    expect(types.has('Ethernet')).toBe(true);
+  });
+
+  it('generates varied timezones', () => {
+    const tzs = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      tzs.add(generateDeviceProfile('Tizen').timezone);
+    }
+    expect(tzs.size).toBeGreaterThan(1);
   });
 });
 

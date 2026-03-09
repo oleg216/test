@@ -41,4 +41,21 @@ describe('parseVastXml', () => {
     expect(result.mediaUrl).toContain('.m3u8');
     expect(result.duration).toBe(15);
   });
+
+  it('extracts ClickThrough and ClickTracking URLs', () => {
+    const xml = readFixture('inline-mp4-with-clicks.xml');
+    const result = parseVastXml(xml);
+    expect(result.type).toBe('inline');
+    expect(result.clickThroughUrl).toBe('https://advertiser.example.com/landing-page');
+    expect(result.clickTrackingUrls).toHaveLength(2);
+    expect(result.clickTrackingUrls).toContain('https://tracker.example.com/click');
+    expect(result.clickTrackingUrls).toContain('https://tracker2.example.com/click');
+  });
+
+  it('returns empty click arrays when no click elements', () => {
+    const xml = readFixture('inline-mp4.xml');
+    const result = parseVastXml(xml);
+    expect(result.clickThroughUrl).toBeUndefined();
+    expect(result.clickTrackingUrls).toHaveLength(0);
+  });
 });
