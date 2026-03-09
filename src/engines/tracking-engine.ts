@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid';
 import { createLogger } from '../shared/logger.js';
 import type { TrackingEventType } from '../shared/types.js';
 
@@ -25,20 +24,19 @@ export class TrackingEngine {
 
     this.firedKeys.add(idempotencyKey);
 
-    const fires = urls.map(async (url) => {
+    // Fire sequentially with small random delays — real SDKs don't blast all URLs at once
+    for (const url of urls) {
       try {
-        const pixelId = uuid();
-        logger.info({ sessionId: this.sessionId, event, url, pixelId }, 'Firing tracking pixel');
-        await this.fetchFn(url, {
-          method: 'GET',
-          headers: { 'X-Idempotency-Key': pixelId },
-        });
+        logger.info({ sessionId: this.sessionId, event, url }, 'Firing tracking pixel');
+        await this.fetchFn(url, { method: 'GET' });
       } catch (err) {
         logger.error({ sessionId: this.sessionId, event, url, err }, 'Tracking pixel failed');
       }
-    });
-
-    await Promise.allSettled(fires);
+      // Small delay between multiple tracking URLs for the same event (20-80ms)
+      if (urls.length > 1) {
+        await new Promise(r => setTimeout(r, 20 + Math.random() * 60));
+      }
+    }
   }
 
   hasFired(event: TrackingEventType): boolean {

@@ -11,6 +11,8 @@ export interface VastParseResult {
   trackingEvents: Map<TrackingEventType, string[]>;
   impressionUrls: string[];
   errorUrls: string[];
+  clickThroughUrl?: string;
+  clickTrackingUrls: string[];
   vastTagUri?: string;
 }
 
@@ -28,6 +30,7 @@ export function parseVastXml(xml: string): VastParseResult {
   const trackingEvents = new Map<TrackingEventType, string[]>();
   const impressionUrls: string[] = [];
   const errorUrls: string[] = [];
+  const clickTrackingUrls: string[] = [];
 
   const isWrapper = /<Wrapper[\s>]/i.test(xml);
   const type = isWrapper ? 'wrapper' : 'inline';
@@ -42,10 +45,20 @@ export function parseVastXml(xml: string): VastParseResult {
     errorUrls.push(extractCdata(match[1]));
   }
 
+  // Click tracking URLs (from both inline and wrappers)
+  const clickTrackingMatches = xml.matchAll(/<ClickTracking[^>]*>([\s\S]*?)<\/ClickTracking>/gi);
+  for (const match of clickTrackingMatches) {
+    clickTrackingUrls.push(extractCdata(match[1]));
+  }
+
+  // ClickThrough URL
+  const clickThroughMatch = xml.match(/<ClickThrough[^>]*>([\s\S]*?)<\/ClickThrough>/i);
+  const clickThroughUrl = clickThroughMatch ? extractCdata(clickThroughMatch[1]) : undefined;
+
   if (isWrapper) {
     const tagMatch = xml.match(/<VASTAdTagURI[^>]*>([\s\S]*?)<\/VASTAdTagURI>/i);
     const vastTagUri = tagMatch ? extractCdata(tagMatch[1]) : undefined;
-    return { type, trackingEvents, impressionUrls, errorUrls, vastTagUri };
+    return { type, trackingEvents, impressionUrls, errorUrls, clickThroughUrl, clickTrackingUrls, vastTagUri };
   }
 
   const trackingMatches = xml.matchAll(/<Tracking\s+event="(\w+)"[^>]*>([\s\S]*?)<\/Tracking>/gi);
@@ -64,7 +77,7 @@ export function parseVastXml(xml: string): VastParseResult {
   const mediaMatch = xml.match(/<MediaFile\s[^>]*>([\s\S]*?)<\/MediaFile>/i);
   const mediaUrl = mediaMatch ? extractCdata(mediaMatch[1]) : undefined;
 
-  return { type, mediaUrl, duration, trackingEvents, impressionUrls, errorUrls };
+  return { type, mediaUrl, duration, trackingEvents, impressionUrls, errorUrls, clickThroughUrl, clickTrackingUrls };
 }
 
 export async function resolveVast(
@@ -89,6 +102,10 @@ export async function resolveVast(
     logger.info({ depth, uri: parsed.vastTagUri }, 'Following VAST wrapper');
     const inner = await resolveVast(parsed.vastTagUri, fetchFn, depth + 1);
     inner.impressionUrls.push(...parsed.impressionUrls);
+    inner.clickTrackingUrls.push(...parsed.clickTrackingUrls);
+    if (!inner.clickThroughUrl && parsed.clickThroughUrl) {
+      inner.clickThroughUrl = parsed.clickThroughUrl;
+    }
     for (const [event, urls] of parsed.trackingEvents) {
       const existing = inner.trackingEvents.get(event) || [];
       inner.trackingEvents.set(event, [...existing, ...urls]);
@@ -96,12 +113,29 @@ export async function resolveVast(
     return inner;
   }
 
+  if (!parsed.mediaUrl) {
+    logger.warn({ depth }, 'VAST resolved but no MediaFile URL found');
+    throw new Error('VAST contains no MediaFile URL');
+  }
+
+  if (!parsed.duration || parsed.duration <= 0) {
+    logger.warn({ mediaUrl: parsed.mediaUrl }, 'VAST has no duration, defaulting to 15s');
+    parsed.duration = 15;
+  }
+
+  logger.info(
+    { mediaUrl: parsed.mediaUrl, duration: parsed.duration, impressions: parsed.impressionUrls.length, trackingEvents: parsed.trackingEvents.size },
+    'VAST resolved successfully',
+  );
+
   return {
-    mediaUrl: parsed.mediaUrl || '',
-    duration: parsed.duration || 0,
+    mediaUrl: parsed.mediaUrl,
+    duration: parsed.duration,
     trackingEvents: parsed.trackingEvents,
     impressionUrls: parsed.impressionUrls,
     errorUrls: parsed.errorUrls,
+    clickThroughUrl: parsed.clickThroughUrl,
+    clickTrackingUrls: parsed.clickTrackingUrls,
   };
 }
 
