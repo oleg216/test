@@ -1,9 +1,9 @@
 import { v4 as uuid } from 'uuid';
 import { createHash } from 'crypto';
-import { ProxyAgent } from 'undici';
 import { createLogger } from '../shared/logger.js';
 import { RTB_TIMEOUT_MS, DEFAULT_BIDFLOOR_VIDEO } from '../shared/constants.js';
 import { lookupGeo, lookupCarrier } from '../shared/geo-lookup.js';
+import { getProxyAgent } from '../shared/proxy-fetch.js';
 import type { SessionConfig, RtbBidRequest, RtbBidResponse, BidResult, AuctionData } from '../shared/types.js';
 
 const logger = createLogger('rtb-adapter');
@@ -154,17 +154,6 @@ export function buildBidRequest(config: SessionConfig, requestId: string): RtbBi
   return request;
 }
 
-// Cache proxy agents to avoid creating a new one per request
-const proxyAgentCache = new Map<string, ProxyAgent>();
-
-function getProxyAgent(proxyUrl: string): ProxyAgent {
-  let agent = proxyAgentCache.get(proxyUrl);
-  if (!agent) {
-    agent = new ProxyAgent(proxyUrl);
-    proxyAgentCache.set(proxyUrl, agent);
-  }
-  return agent;
-}
 
 /**
  * Resolve the outgoing IP of a proxy by hitting an IP-echo service through it.
@@ -181,7 +170,7 @@ async function resolveProxyIp(proxyUrl: string): Promise<string | null> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await fetch('https://api.ipify.org?format=json', {
       signal: AbortSignal.timeout(5000),
-      dispatcher: getProxyAgent(proxyUrl),
+      dispatcher: getProxyAgent(proxyUrl) as import('undici').Dispatcher,
     } as any);
     const data = (await res.json()) as { ip: string };
     if (data.ip) {
@@ -249,7 +238,7 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
   };
 
   if (config.proxy) {
-    fetchOptions.dispatcher = getProxyAgent(config.proxy);
+    fetchOptions.dispatcher = getProxyAgent(config.proxy) as import('undici').Dispatcher;
   }
 
   try {
@@ -375,10 +364,11 @@ export function applyMacros(url: string, data: AuctionData): string {
 /**
  * Fire win notification (nurl) — fire-and-forget.
  */
-export async function fireWinNotice(nurl: string, auctionData: AuctionData): Promise<void> {
+export async function fireWinNotice(nurl: string, auctionData: AuctionData, proxyFetchFn?: (url: string, init?: RequestInit) => Promise<Response>): Promise<void> {
   const url = applyMacros(nurl, auctionData);
+  const doFetch = proxyFetchFn || fetch;
   try {
-    await fetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
+    await doFetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
     logger.info({ url: url.slice(0, 100) }, 'Win notice fired');
   } catch (err) {
     logger.warn({ url: url.slice(0, 80), err: (err as Error).message }, 'Win notice failed');
@@ -388,10 +378,11 @@ export async function fireWinNotice(nurl: string, auctionData: AuctionData): Pro
 /**
  * Fire billing notification (burl) — fire-and-forget.
  */
-export async function fireBillingNotice(burl: string, auctionData: AuctionData): Promise<void> {
+export async function fireBillingNotice(burl: string, auctionData: AuctionData, proxyFetchFn?: (url: string, init?: RequestInit) => Promise<Response>): Promise<void> {
   const url = applyMacros(burl, auctionData);
+  const doFetch = proxyFetchFn || fetch;
   try {
-    await fetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
+    await doFetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
     logger.info({ url: url.slice(0, 100) }, 'Billing notice fired');
   } catch (err) {
     logger.warn({ url: url.slice(0, 80), err: (err as Error).message }, 'Billing notice failed');
@@ -401,10 +392,11 @@ export async function fireBillingNotice(burl: string, auctionData: AuctionData):
 /**
  * Fire loss notification (lurl) — fire-and-forget.
  */
-export async function fireLossNotice(lurl: string, auctionData: AuctionData): Promise<void> {
+export async function fireLossNotice(lurl: string, auctionData: AuctionData, proxyFetchFn?: (url: string, init?: RequestInit) => Promise<Response>): Promise<void> {
   const url = applyMacros(lurl, auctionData);
+  const doFetch = proxyFetchFn || fetch;
   try {
-    await fetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
+    await doFetch(url, { method: 'GET', signal: AbortSignal.timeout(5000) });
     logger.info({ url: url.slice(0, 100) }, 'Loss notice fired');
   } catch (err) {
     logger.warn({ url: url.slice(0, 80), err: (err as Error).message }, 'Loss notice failed');

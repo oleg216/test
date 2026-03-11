@@ -9,6 +9,7 @@ import { setupNetworkInterceptor } from './network-interceptor.js';
 import { sendBidRequest, extractBidResult, fireWinNotice, fireBillingNotice } from '../engines/rtb-adapter.js';
 import { initGeoDb } from '../shared/geo-lookup.js';
 import { resolveVast } from '../engines/vast-resolver.js';
+import { createProxyFetch } from '../shared/proxy-fetch.js';
 import { buildTimeline, AdTimelineScheduler } from '../engines/ad-timeline.js';
 import { TrackingEngine } from '../engines/tracking-engine.js';
 import { SessionState } from '../shared/types.js';
@@ -128,18 +129,29 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
       }
     }
 
+    // Build proxy-aware fetch for IP-critical requests (VAST, tracking, win/billing)
+    // Video media loads directly in Chromium without proxy to save proxy traffic
+    const proxyFetchFn = createProxyFetch(config.payload.proxy);
+
     // Fire win notification (nurl) — fire-and-forget, don't block session
     if (bidResult.nurl) {
-      fireWinNotice(bidResult.nurl, bidResult.auctionData).catch(() => {});
+      fireWinNotice(bidResult.nurl, bidResult.auctionData, proxyFetchFn).catch(() => {});
     }
 
     // VAST RESOLVING
     sm.transition(SessionState.VAST_RESOLVING);
     sendToMaster({ type: 'session-update', sessionId, state: sm.state });
 
+    const vastFetchFn = proxyFetchFn
+      ? async (url: string, signal?: AbortSignal) => {
+          const res = await proxyFetchFn(url, { signal });
+          if (!res.ok) throw new Error(`VAST fetch failed: ${res.status}`);
+          return res.text();
+        }
+      : undefined;
     let creative;
     try {
-      creative = await resolveVast(bidResult.vastXml);
+      creative = await resolveVast(bidResult.vastXml, vastFetchFn);
     } catch (err) {
       sm.setError(SessionState.ERROR_VAST, (err as Error).message);
       sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
@@ -173,7 +185,10 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     sm.transition(SessionState.AD_PLAYING);
     sendToMaster({ type: 'session-update', sessionId, state: sm.state });
 
-    const trackingEngine = new TrackingEngine(sessionId);
+    const trackingFetchFn = proxyFetchFn
+      ? (url: string, init?: RequestInit) => proxyFetchFn(url, init).then(r => ({ ok: r.ok }))
+      : undefined;
+    const trackingEngine = new TrackingEngine(sessionId, trackingFetchFn);
     trackingEngines.set(sessionId, trackingEngine);
 
     const timeline = buildTimeline(creative.duration);
@@ -193,7 +208,8 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
         // Simulate landing page open (GET on ClickThrough URL)
         if (creative.clickThroughUrl) {
           try {
-            await fetch(creative.clickThroughUrl, { method: 'GET', redirect: 'follow' });
+            const doFetch = proxyFetchFn || fetch;
+            await doFetch(creative.clickThroughUrl, { method: 'GET', redirect: 'follow' });
           } catch {
             logger.warn({ sessionId, url: creative.clickThroughUrl }, 'ClickThrough fetch failed');
           }
@@ -206,7 +222,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
 
         // Fire billing notice (burl) after impression — confirms ad was rendered
         if (event === 'impression' && bidResult.burl) {
-          fireBillingNotice(bidResult.burl, bidResult.auctionData).catch(() => {});
+          fireBillingNotice(bidResult.burl, bidResult.auctionData, proxyFetchFn).catch(() => {});
         }
       }
       sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { [`tracking_${event}`]: 1 } });
