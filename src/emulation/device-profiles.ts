@@ -19,8 +19,26 @@ export const DEVICE_PRESETS: Record<string, DevicePreset> = {
     vendors: [
       { vendor: 'Sony', models: ['BRAVIA XR-55A95K', 'BRAVIA XR-65X90K', 'BRAVIA XR-75X95K'] },
       { vendor: 'Nvidia', models: ['SHIELD Android TV Pro', 'SHIELD Android TV'] },
-      { vendor: 'Xiaomi', models: ['MITV-MSSP1', 'MITV-MSSQ1'] },
-      { vendor: 'TCL', models: ['55S546', '65S546', '75S546'] },
+      { vendor: 'Xiaomi', models: [
+        'L65M9-SP', 'L75M9-SP', 'L85M9-SP', 'L100M9-SP',
+        'L55M9-S', 'L65M9-S', 'L75M9-S',
+        'L55M8-AP', 'L65M8-AP', 'L75M8-AP', 'L85M8-AP', 'L100M8-AP',
+        'L55M8-A', 'L65M8-A', 'L50M8-A', 'L70M8-A',
+        'L55M7-P1E', 'L43M7-P1E', 'L50M7-P1E',
+        'L55M6-6AEU', 'L50M6-6AEU', 'L43M6-6AEU',
+        'L65M6-ESG', 'L55M6-5ASP',
+      ] },
+      { vendor: 'Redmi', models: [
+        'L75MA-RA', 'L70MA-RA', 'L65MA-RA', 'L55MA-RA', 'L50MA-RA',
+        'L55M6-RK', 'L65M6-RK', 'L50M6-RK',
+      ] },
+      { vendor: 'TCL', models: [
+        '55EC780', '60EP660', '43EP660', '50EP660', '55EP660', '65EP660', '75EP660',
+        '65DC760', '55DC760',
+        '60P66', '50P66',
+        '43P6', '50P6', '55P6', '65P6', '75P6',
+        '65X3', '55X3', '65X1',
+      ] },
       { vendor: 'Hisense', models: ['55A6H', '65A6H', '75A6H'] },
     ],
     screenWidth: 1920,

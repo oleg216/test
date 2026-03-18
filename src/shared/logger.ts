@@ -1,6 +1,6 @@
 import pino from 'pino';
 
-const SENSITIVE_KEYS = ['ifa', 'ip', 'deviceId', 'carrier'];
+const SENSITIVE_KEYS = ['ifa', 'ip', 'deviceId', 'carrier', 'userAgent'];
 
 export function maskSensitiveData(data: Record<string, unknown>): Record<string, unknown> {
   const masked = { ...data };

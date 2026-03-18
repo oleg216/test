@@ -1,11 +1,8 @@
-version: '3.8'
-
 services:
   ctv-emulator:
     build: .
     container_name: ctv-emulator
-    ports:
-      - "3000:3000"
+    network_mode: host
     environment:
       - MAX_SESSIONS=200
       - MAX_WORKERS=20
@@ -14,6 +11,7 @@ services:
       - VAST_TIMEOUT_MS=3000
       - MEDIA_TIMEOUT_MS=5000
       - LOG_ROTATION_SIZE=50m
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - PORT=3000
     volumes:
       - ./logs:/app/logs

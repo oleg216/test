@@ -1,4 +1,4 @@
-import { createLogger } from '../shared/logger.js';
+import { createLogger, maskSensitiveData } from '../shared/logger.js';
 import { PIXALATE_API_KEY, PIXALATE_BASE_URL, PIXALATE_THRESHOLD } from '../shared/constants.js';
 
 const logger = createLogger('pixalate-checker');
@@ -80,7 +80,7 @@ export class PixalateChecker {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        logger.warn({ params, status: response.status, body }, 'Pixalate API error');
+        logger.warn({ params: maskSensitiveData(params), status: response.status, body }, 'Pixalate API error');
         return { probability: 0, pass: true, reason: `API error: ${response.status}`, httpStatus: response.status };
       }
 
@@ -89,14 +89,14 @@ export class PixalateChecker {
       const pass = probability <= this.threshold;
 
       if (!pass) {
-        logger.warn({ params, probability }, 'Pixalate fraud detected');
+        logger.warn({ params: maskSensitiveData(params), probability }, 'Pixalate fraud detected');
       } else {
-        logger.info({ params, probability }, 'Pixalate check passed');
+        logger.info({ params: maskSensitiveData(params), probability }, 'Pixalate check passed');
       }
 
       return { probability, pass, rawResponse: data, httpStatus: response.status };
     } catch (err) {
-      logger.error({ params, err }, 'Pixalate request failed');
+      logger.error({ params: maskSensitiveData(params), err }, 'Pixalate request failed');
       return { probability: 0, pass: true, reason: 'network_error' };
     }
   }

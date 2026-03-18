@@ -11,6 +11,8 @@ import { WorkerManager } from './worker-manager.js';
 import { SessionScheduler } from './scheduler.js';
 import { generateDeviceProfile } from '../emulation/device-profiles.js';
 import { loadUserPool, getRandomPoolUser, buildDeviceFromPoolUser, getPoolSize } from '../emulation/user-pool.js';
+import { loadProxyPool, getNextProxy, getProxyPoolSize } from '../emulation/proxy-pool.js';
+import { SessionStore } from './session-store.js';
 import type { SessionConfig } from '../shared/types.js';
 
 const logger = createLogger('server');
@@ -23,22 +25,39 @@ try {
   logger.warn('dashboard.html not found in public/');
 }
 
-// Load user pool at startup
+// Load user pool and proxy pool at startup
 loadUserPool();
+loadProxyPool();
 
 export async function startMaster(): Promise<void> {
   await initGeoDb();
   const metrics = new MetricsRegistry();
+  const store = new SessionStore();
   const workerManager = new WorkerManager((msg) => {
     scheduler.handleWorkerMessage(msg);
   });
-  const scheduler = new SessionScheduler(workerManager, metrics);
+  const scheduler = new SessionScheduler(workerManager, metrics, store);
 
   const app = Fastify({ logger: false });
   await app.register(cors);
 
   // --- Health & Metrics ---
-  app.get('/health', async () => ({ status: 'ok', uptime: process.uptime() }));
+  app.get('/health', async (request, reply) => {
+    const workers = workerManager.getWorkersInfo();
+    const runningWorkers = workers.filter(w => w.status === 'running').length;
+    if (runningWorkers === 0) {
+      return reply.status(503).send({
+        status: 'degraded',
+        uptime: process.uptime(),
+        workers: { total: workers.length, running: 0 },
+      });
+    }
+    return {
+      status: 'ok',
+      uptime: process.uptime(),
+      workers: { total: workers.length, running: runningWorkers },
+    };
+  });
 
   app.get('/metrics', async (request, reply) => {
     const metricsText = await metrics.getMetrics();
@@ -161,7 +180,12 @@ export async function startMaster(): Promise<void> {
         device = generateDeviceProfile(os);
       }
 
-      const proxy = body.proxy || DEFAULT_PROXY || undefined;
+      let proxy: string | undefined;
+      if (body.proxy === 'none') {
+        proxy = undefined;
+      } else {
+        proxy = body.proxy || DEFAULT_PROXY || (getProxyPoolSize() > 0 ? getNextProxy()! : undefined);
+      }
 
       configs.push({
         device,
@@ -201,12 +225,51 @@ export async function startMaster(): Promise<void> {
     return { loaded: users.length };
   });
 
+  // --- History API (from SQLite) ---
+  app.get('/api/history/sessions', async (request) => {
+    const query = request.query as { limit?: string; offset?: string; date?: string };
+    if (query.date) {
+      return { sessions: store.getSessionsByDate(query.date) };
+    }
+    const limit = Math.min(parseInt(query.limit || '100', 10), 500);
+    const offset = parseInt(query.offset || '0', 10);
+    return { sessions: store.getRecentSessions(limit, offset), total: store.getTotalCount() };
+  });
+
+  app.get('/api/history/daily', async (request) => {
+    const query = request.query as { days?: string };
+    const days = Math.min(parseInt(query.days || '7', 10), 90);
+    return { stats: store.getDailyStats(days) };
+  });
+
+  app.get('/api/history/stats', async () => {
+    return store.getAggregateStats();
+  });
+
+  app.get('/api/history/errors', async () => {
+    return { errors: store.getErrorBreakdown() };
+  });
+
+  // --- Proxy Pool API ---
+  app.get('/api/proxies', async () => {
+    return { size: getProxyPoolSize() };
+  });
+
+  app.post('/api/proxies/reload', async () => {
+    const proxies = loadProxyPool();
+    return { loaded: proxies.length };
+  });
+
   await workerManager.start();
   await app.listen({ port: PORT, host: '0.0.0.0' });
   logger.info({ port: PORT }, 'CTV Emulator API started');
 
+  let shutdownInProgress = false;
   const shutdown = async () => {
+    if (shutdownInProgress) return;
+    shutdownInProgress = true;
     logger.info('Shutting down...');
+    scheduler.shutdown();
     await workerManager.shutdown();
     await app.close();
     process.exit(0);

@@ -34,10 +34,9 @@
   button.green { background: #238636; border-color: #238636; color: #fff; }
   button.green:hover { background: #2ea043; }
 
-  /* Stats cards */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 1px;
     background: #30363d;
     border-bottom: 1px solid #30363d;
@@ -57,58 +56,24 @@
   .stat-card .value.purple { color: #bc8cff; }
   .stat-card .value.yellow { color: #d29922; }
 
-  /* Tracking funnel */
-  .funnel-section {
+  .section {
     background: #161b22;
     border-bottom: 1px solid #30363d;
     padding: 12px 20px;
   }
-  .funnel-section h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+  .section h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+
   .funnel-bar { display: flex; gap: 2px; align-items: end; height: 40px; }
-  .funnel-step {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-  .funnel-step .bar {
-    width: 100%;
-    border-radius: 3px 3px 0 0;
-    min-height: 2px;
-    transition: height 0.3s;
-  }
+  .funnel-step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .funnel-step .bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s; }
   .funnel-step .lbl { font-size: 10px; color: #8b949e; }
   .funnel-step .cnt { font-size: 12px; font-weight: 600; color: #e6edf3; }
 
-  /* Breakdown tables */
-  .breakdown-section {
-    background: #161b22;
-    border-bottom: 1px solid #30363d;
-    padding: 12px 20px;
-  }
-  .breakdown-section h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
-  .breakdown-grid { display: flex; gap: 20px; flex-wrap: wrap; }
-  .breakdown-table { flex: 1; min-width: 280px; }
-  .breakdown-table table { width: 100%; border-collapse: collapse; }
-  .breakdown-table th {
-    text-align: left; font-size: 11px; color: #8b949e; font-weight: 600;
-    padding: 4px 8px; border-bottom: 1px solid #30363d;
-  }
-  .breakdown-table td { padding: 4px 8px; font-size: 12px; border-bottom: 1px solid #21262d; }
-  .fill-bar { display: inline-block; height: 8px; border-radius: 4px; background: #238636; min-width: 2px; }
+  .err-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+  .err-card { background: #21262d; border-radius: 8px; padding: 10px 14px; min-width: 140px; }
+  .err-card .err-count { font-size: 20px; font-weight: 700; color: #f85149; }
+  .err-card .err-label { font-size: 11px; color: #8b949e; margin-top: 2px; }
 
-  /* Session log */
-  .log-section { padding: 0; }
-  .log-header {
-    background: #161b22;
-    padding: 8px 20px;
-    border-bottom: 1px solid #30363d;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .log-header h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; font-weight: 600; }
   table.log-table { width: 100%; border-collapse: collapse; }
   .log-table thead th {
     background: #161b22; position: sticky; top: 0; padding: 6px 10px;
@@ -116,23 +81,16 @@
     text-transform: uppercase; border-bottom: 1px solid #30363d; white-space: nowrap;
   }
   .log-table tbody tr { border-bottom: 1px solid #21262d; transition: background 0.15s; }
-  .log-table tbody tr:hover { background: #161b22; }
+  .log-table tbody tr:hover { background: #1c2028; }
   .log-table td { padding: 6px 10px; white-space: nowrap; font-size: 12px; }
-  .badge {
-    display: inline-block; padding: 2px 8px; border-radius: 12px;
-    font-size: 10px; font-weight: 600;
-  }
-  .badge-running { background: #1c2d3b; color: #58a6ff; }
-  .badge-stopped { background: #1b4332; color: #52c41a; }
-  .badge-error { background: #3b1c1c; color: #f85149; }
-  .badge-created { background: #2d2d1c; color: #d29922; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+  .badge-ok { background: #1b4332; color: #52c41a; }
+  .badge-err { background: #3b1c1c; color: #f85149; }
+  .badge-run { background: #1c2d3b; color: #58a6ff; }
+  .badge-wait { background: #2d2d1c; color: #d29922; }
+  .err-text { font-size: 11px; color: #f85149; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* Launch panel */
-  .launch-panel {
-    background: #161b22;
-    border-bottom: 1px solid #30363d;
-    padding: 12px 20px;
-  }
+  .launch-panel { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 20px; }
   .launch-panel h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
   .launch-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
   .launch-form .field { display: flex; flex-direction: column; gap: 2px; }
@@ -140,18 +98,19 @@
   .launch-form input, .launch-form select { width: 180px; }
   .launch-form input.short { width: 70px; }
 
-  .empty { text-align: center; padding: 40px 20px; color: #484f58; font-size: 14px; }
+  .pager { display: flex; gap: 8px; align-items: center; }
   .status-bar {
     background: #161b22; border-bottom: 1px solid #30363d;
     padding: 4px 20px; font-size: 11px; color: #8b949e;
     display: flex; justify-content: space-between;
   }
+  .empty { text-align: center; padding: 30px 20px; color: #484f58; font-size: 14px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>CTV Emulator<span>&middot; Dashboard</span></h1>
+  <h1>CTV Emulator<span id="dbLabel"></span></h1>
   <div class="controls">
     <button onclick="refreshAll()">Refresh</button>
     <button id="btnAuto" onclick="toggleAuto()">Auto: OFF</button>
@@ -176,11 +135,11 @@
     </div>
     <div class="field">
       <label>Bidfloor $</label>
-      <input id="launchFloor" type="number" class="short" value="2.0" step="0.1" min="0">
+      <input id="launchFloor" type="number" class="short" value="0.5" step="0.1" min="0">
     </div>
     <div class="field">
-      <label>Proxy</label>
-      <input id="launchProxy" type="text" style="width:360px" placeholder="http://user:pass@host:port">
+      <label>Proxy <span id="proxyPoolSize" style="color:#8b949e;font-size:11px"></span></label>
+      <input id="launchProxy" type="text" style="width:360px" placeholder="empty = auto-rotate from pool">
     </div>
     <div class="field">
       <label>OS</label>
@@ -200,58 +159,54 @@
   </div>
 </div>
 
-<!-- Stats Cards -->
-<div class="stats-grid" id="statsGrid">
-  <div class="stat-card"><span class="label">Running</span><span class="value blue" id="vRunning">0</span></div>
-  <div class="stat-card"><span class="label">Total Sessions</span><span class="value" id="vTotal">0</span></div>
-  <div class="stat-card"><span class="label">Completed</span><span class="value green" id="vCompleted">0</span></div>
-  <div class="stat-card"><span class="label">Failed</span><span class="value red" id="vFailed">0</span></div>
-  <div class="stat-card"><span class="label">RTB Requests</span><span class="value" id="vRtbReq">0</span></div>
-  <div class="stat-card"><span class="label">Bids Received</span><span class="value green" id="vBids">0</span></div>
-  <div class="stat-card"><span class="label">No-Bids</span><span class="value red" id="vNoBids">0</span></div>
-  <div class="stat-card"><span class="label">Win Rate</span><span class="value blue" id="vWinRate">0%</span></div>
-  <div class="stat-card"><span class="label">Bid Revenue</span><span class="value green" id="vRevenue">$0</span></div>
-  <div class="stat-card"><span class="label">Avg CPM</span><span class="value yellow" id="vCPM">$0</span></div>
-  <div class="stat-card"><span class="label">Impressions</span><span class="value purple" id="vImpressions">0</span></div>
-  <div class="stat-card"><span class="label">Avg Latency</span><span class="value" id="vLatency">0ms</span></div>
-</div>
+<!-- Stats Cards (from DB) -->
+<div class="stats-grid" id="statsGrid"></div>
 
-<!-- Tracking Funnel -->
-<div class="funnel-section">
+<!-- Funnel (from DB) -->
+<div class="section">
   <h3>Tracking Funnel</h3>
   <div class="funnel-bar" id="funnelBar"></div>
 </div>
 
-<!-- Breakdown -->
-<div class="breakdown-section" id="breakdownSection" style="display:none">
-  <h3>Breakdown</h3>
-  <div class="breakdown-grid">
-    <div class="breakdown-table" id="geoBreakdown"></div>
-    <div class="breakdown-table" id="appBreakdown"></div>
-    <div class="breakdown-table" id="deviceBreakdown"></div>
+<!-- Error Breakdown -->
+<div class="section" id="errSection" style="display:none">
+  <h3>Error Breakdown</h3>
+  <div class="err-grid" id="errGrid"></div>
+</div>
+
+<!-- Daily History -->
+<div class="section">
+  <h3>Daily History</h3>
+  <div style="overflow-x:auto">
+    <table class="log-table">
+      <thead><tr>
+        <th>Day</th><th>Total</th><th>OK</th><th>Failed</th><th>Bids</th>
+        <th>Revenue</th><th>Avg Bid</th><th>Impr</th><th>Completes</th><th>Latency</th>
+      </tr></thead>
+      <tbody id="dailyBody"></tbody>
+    </table>
   </div>
 </div>
 
-<!-- Session Log -->
-<div class="log-section">
-  <div class="log-header">
-    <h3>Recent Sessions</h3>
-    <select id="logLimit" onchange="refreshAll()">
-      <option value="50">50</option>
-      <option value="100" selected>100</option>
-      <option value="200">200</option>
-    </select>
+<!-- Sessions (from DB) -->
+<div class="section" style="padding-bottom:0">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h3 style="margin:0">Sessions <span id="sessTotal" style="color:#8b949e;font-weight:400"></span></h3>
+    <div class="pager">
+      <button onclick="sessPage(-1)" id="sessPrev" style="padding:4px 10px">Prev</button>
+      <span id="sessPageInfo" style="font-size:11px;color:#8b949e"></span>
+      <button onclick="sessPage(1)" id="sessNext" style="padding:4px 10px">Next</button>
+    </div>
   </div>
   <div style="overflow-x:auto">
     <table class="log-table">
       <thead><tr>
-        <th>Time</th><th>State</th><th>App</th><th>OS</th><th>Model</th>
-        <th>Geo</th><th>Bid $</th><th>Latency</th><th>Events</th><th>Duration</th>
+        <th>Time</th><th>Status</th><th>App</th><th>OS</th><th>Model</th>
+        <th>Geo</th><th>Bid $</th><th>Latency</th><th>Events</th><th>Error</th>
       </tr></thead>
-      <tbody id="logBody"></tbody>
+      <tbody id="sessBody"></tbody>
     </table>
   </div>
-  <div id="emptyState" class="empty" style="display:none">No sessions yet. Launch some traffic above.</div>
 </div>
 
 <div class="status-bar">
@@ -262,127 +217,140 @@
 <script>
 (function() {
   var autoInterval = null;
+  var sessOffset = 0;
+  var sessLimit = 50;
+  var sessTotalCount = 0;
 
   function esc(s) { return s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  function formatTime(iso) {
-    if (!iso) return '\u2014';
-    var d = new Date(iso);
-    var p = function(n) { return n < 10 ? '0' + n : n; };
-    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  // Human-readable error
+  function friendlyError(err) {
+    if (!err) return '';
+    if (err.indexOf('resolve proxy') >= 0) return 'Proxy offline';
+    if (err.indexOf('No VAST in bid response') >= 0) return 'DSP no-bid (204)';
+    if (err.indexOf('aborted') >= 0 || err.indexOf('timeout') >= 0) return 'RTB timeout';
+    if (err.indexOf('fetch failed') >= 0) return 'Connection failed';
+    if (err.indexOf('VAST') >= 0) return 'VAST error';
+    if (err.indexOf('ECONNREFUSED') >= 0) return 'DSP refused';
+    if (err.indexOf('ENOTFOUND') >= 0) return 'DNS failed';
+    return err.length > 30 ? err.slice(0, 30) + '...' : err;
   }
 
   function stateBadge(state) {
     if (!state) return '';
-    if (state === 'STOPPED') return '<span class="badge badge-stopped">DONE</span>';
-    if (state.startsWith('ERROR_')) return '<span class="badge badge-error">' + esc(state) + '</span>';
-    if (state === 'CREATED' || state === 'INITIALIZING') return '<span class="badge badge-created">' + esc(state) + '</span>';
-    return '<span class="badge badge-running">' + esc(state) + '</span>';
+    if (state === 'STOPPED') return '<span class="badge badge-ok">DONE</span>';
+    if (state.startsWith('ERROR_')) {
+      var t = state.replace('ERROR_','');
+      return '<span class="badge badge-err">' + esc(t) + '</span>';
+    }
+    if (state === 'CREATED' || state === 'INITIALIZING') return '<span class="badge badge-wait">' + esc(state) + '</span>';
+    return '<span class="badge badge-run">' + esc(state) + '</span>';
   }
 
   function latencyColor(ms) {
     if (!ms) return '';
-    if (ms < 300) return 'color:#52c41a';
-    if (ms < 800) return 'color:#d29922';
+    if (ms < 500) return 'color:#52c41a';
+    if (ms < 1500) return 'color:#d29922';
     return 'color:#f85149';
   }
 
   function renderStats(s) {
-    document.getElementById('vRunning').textContent = s.sessionsRunning;
-    document.getElementById('vTotal').textContent = s.sessionsTotal;
-    document.getElementById('vCompleted').textContent = s.sessionsCompleted;
-    document.getElementById('vFailed').textContent = s.sessionsFailed;
-    document.getElementById('vRtbReq').textContent = s.rtbRequests;
-    document.getElementById('vBids').textContent = s.bidsReceived;
-    document.getElementById('vNoBids').textContent = s.rtbNoBids;
-    document.getElementById('vWinRate').textContent = s.winRate;
-    document.getElementById('vRevenue').textContent = '$' + s.bidRevenue.toFixed(4);
-    document.getElementById('vCPM').textContent = '$' + s.avgCPM.toFixed(2);
-    document.getElementById('vImpressions').textContent = s.impressions;
-    document.getElementById('vLatency').textContent = s.avgLatencyMs + 'ms';
+    var winRate = s.total > 0 ? ((s.bids / s.total) * 100).toFixed(1) + '%' : '0%';
+    var cpm = s.bids > 0 ? (s.avg_bid * 1000).toFixed(2) : '0.00';
+    var cards = [
+      { label: 'Total Sessions', value: s.total, cls: '' },
+      { label: 'Completed', value: s.completed, cls: 'green' },
+      { label: 'Failed', value: s.failed, cls: 'red' },
+      { label: 'Bids Won', value: s.bids, cls: 'green' },
+      { label: 'No-Bids', value: s.no_bids, cls: 'red' },
+      { label: 'Win Rate', value: winRate, cls: 'blue' },
+      { label: 'Revenue', value: '$' + s.revenue.toFixed(4), cls: 'green' },
+      { label: 'Avg CPM', value: '$' + cpm, cls: 'yellow' },
+      { label: 'Impressions', value: s.impressions, cls: 'purple' },
+      { label: 'Avg Latency', value: Math.round(s.avg_latency) + 'ms', cls: '' },
+    ];
+    var html = '';
+    for (var i = 0; i < cards.length; i++) {
+      html += '<div class="stat-card"><span class="label">' + cards[i].label + '</span><span class="value ' + cards[i].cls + '">' + cards[i].value + '</span></div>';
+    }
+    document.getElementById('statsGrid').innerHTML = html;
 
     // Funnel
     var funnel = [
-      { lbl: 'RTB', cnt: s.rtbRequests, color: '#58a6ff' },
-      { lbl: 'Bids', cnt: s.bidsReceived, color: '#238636' },
+      { lbl: 'Sessions', cnt: s.total, color: '#58a6ff' },
+      { lbl: 'Bids', cnt: s.bids, color: '#238636' },
       { lbl: 'Impr', cnt: s.impressions, color: '#bc8cff' },
       { lbl: 'Start', cnt: s.starts, color: '#79c0ff' },
-      { lbl: 'Q1', cnt: s.firstQuartiles, color: '#56d4dd' },
+      { lbl: 'Q1', cnt: s.first_quartiles, color: '#56d4dd' },
       { lbl: 'Mid', cnt: s.midpoints, color: '#d29922' },
-      { lbl: 'Q3', cnt: s.thirdQuartiles, color: '#db6d28' },
-      { lbl: 'Done', cnt: s.completes, color: '#52c41a' },
+      { lbl: 'Q3', cnt: s.third_quartiles, color: '#db6d28' },
+      { lbl: 'Complete', cnt: s.completes, color: '#52c41a' },
       { lbl: 'Click', cnt: s.clicks, color: '#f85149' },
     ];
     var maxCnt = Math.max.apply(null, funnel.map(function(f) { return f.cnt; })) || 1;
-    var funnelHtml = '';
-    for (var i = 0; i < funnel.length; i++) {
-      var h = Math.max(2, Math.round((funnel[i].cnt / maxCnt) * 36));
-      funnelHtml += '<div class="funnel-step">'
-        + '<div class="cnt">' + funnel[i].cnt + '</div>'
-        + '<div class="bar" style="height:' + h + 'px;background:' + funnel[i].color + '"></div>'
-        + '<div class="lbl">' + funnel[i].lbl + '</div>'
-        + '</div>';
+    var fh = '';
+    for (var j = 0; j < funnel.length; j++) {
+      var h = Math.max(2, Math.round((funnel[j].cnt / maxCnt) * 36));
+      fh += '<div class="funnel-step"><div class="cnt">' + funnel[j].cnt + '</div><div class="bar" style="height:' + h + 'px;background:' + funnel[j].color + '"></div><div class="lbl">' + funnel[j].lbl + '</div></div>';
     }
-    document.getElementById('funnelBar').innerHTML = funnelHtml;
+    document.getElementById('funnelBar').innerHTML = fh;
 
-    // Breakdown tables
-    var hasBreakdown = Object.keys(s.byGeo || {}).length > 0 || Object.keys(s.byApp || {}).length > 0;
-    document.getElementById('breakdownSection').style.display = hasBreakdown ? '' : 'none';
-
-    if (s.byGeo && Object.keys(s.byGeo).length > 0) {
-      var gh = '<table><thead><tr><th>Geo</th><th>Req</th><th>Bids</th><th>Impr</th><th>Fill</th></tr></thead><tbody>';
-      var gKeys = Object.keys(s.byGeo).sort(function(a, b) { return (s.byGeo[b].requests || 0) - (s.byGeo[a].requests || 0); });
-      for (var g = 0; g < gKeys.length; g++) {
-        var gv = s.byGeo[gKeys[g]];
-        var fill = gv.requests > 0 ? ((gv.bids / gv.requests) * 100).toFixed(0) + '%' : '0%';
-        var fw = gv.requests > 0 ? Math.round((gv.bids / gv.requests) * 60) : 0;
-        gh += '<tr><td>' + esc(gKeys[g]) + '</td><td>' + gv.requests + '</td><td>' + gv.bids + '</td><td>' + gv.impressions + '</td>'
-          + '<td>' + fill + ' <span class="fill-bar" style="width:' + fw + 'px"></span></td></tr>';
-      }
-      gh += '</tbody></table>';
-      document.getElementById('geoBreakdown').innerHTML = gh;
-    }
-
-    if (s.byApp && Object.keys(s.byApp).length > 0) {
-      var ah = '<table><thead><tr><th>App</th><th>Req</th><th>Bids</th><th>Impr</th></tr></thead><tbody>';
-      var aKeys = Object.keys(s.byApp).sort(function(a, b) { return (s.byApp[b].requests || 0) - (s.byApp[a].requests || 0); });
-      for (var a = 0; a < aKeys.length; a++) {
-        var av = s.byApp[aKeys[a]];
-        ah += '<tr><td>' + esc(aKeys[a]) + '</td><td>' + av.requests + '</td><td>' + av.bids + '</td><td>' + av.impressions + '</td></tr>';
-      }
-      ah += '</tbody></table>';
-      document.getElementById('appBreakdown').innerHTML = ah;
-    }
-
-    if (s.byDevice && Object.keys(s.byDevice).length > 0) {
-      var dh = '<table><thead><tr><th>Device OS</th><th>Req</th><th>Bids</th></tr></thead><tbody>';
-      var dKeys = Object.keys(s.byDevice).sort();
-      for (var d = 0; d < dKeys.length; d++) {
-        var dv = s.byDevice[dKeys[d]];
-        dh += '<tr><td>' + esc(dKeys[d]) + '</td><td>' + dv.requests + '</td><td>' + dv.bids + '</td></tr>';
-      }
-      dh += '</tbody></table>';
-      document.getElementById('deviceBreakdown').innerHTML = dh;
+    // Error breakdown
+    var errSec = document.getElementById('errSection');
+    if (s.err_proxy || s.err_nobid || s.err_timeout || s.err_vast) {
+      errSec.style.display = '';
+      var eh = '';
+      if (s.err_nobid) eh += '<div class="err-card"><div class="err-count">' + s.err_nobid + '</div><div class="err-label">DSP No-Bid</div></div>';
+      if (s.err_timeout) eh += '<div class="err-card"><div class="err-count">' + s.err_timeout + '</div><div class="err-label">RTB Timeout</div></div>';
+      if (s.err_proxy) eh += '<div class="err-card"><div class="err-count">' + s.err_proxy + '</div><div class="err-label">Proxy Offline</div></div>';
+      if (s.err_vast) eh += '<div class="err-card"><div class="err-count">' + s.err_vast + '</div><div class="err-label">VAST Error</div></div>';
+      document.getElementById('errGrid').innerHTML = eh;
+    } else {
+      errSec.style.display = 'none';
     }
   }
 
-  function renderSessions(sessions) {
-    var logBody = document.getElementById('logBody');
-    var emptyState = document.getElementById('emptyState');
-    if (!sessions.length) {
-      logBody.innerHTML = '';
-      emptyState.style.display = 'block';
-      return;
+  function renderDaily(stats) {
+    var body = document.getElementById('dailyBody');
+    if (!stats.length) { body.innerHTML = '<tr><td colspan="10" class="empty">No history yet</td></tr>'; return; }
+    var html = '';
+    for (var i = 0; i < stats.length; i++) {
+      var d = stats[i];
+      html += '<tr>'
+        + '<td>' + esc(d.day) + '</td>'
+        + '<td>' + d.total + '</td>'
+        + '<td style="color:#52c41a">' + d.completed + '</td>'
+        + '<td style="color:#f85149">' + d.failed + '</td>'
+        + '<td>' + d.bids + '</td>'
+        + '<td style="color:#52c41a">$' + d.revenue.toFixed(4) + '</td>'
+        + '<td>$' + d.avg_bid.toFixed(4) + '</td>'
+        + '<td>' + d.impressions + '</td>'
+        + '<td>' + d.completes + '</td>'
+        + '<td style="' + latencyColor(d.avg_latency) + '">' + Math.round(d.avg_latency) + 'ms</td>'
+        + '</tr>';
     }
-    emptyState.style.display = 'none';
+    body.innerHTML = html;
+  }
 
+  function renderSessions(data) {
+    sessTotalCount = data.total || 0;
+    var sessions = data.sessions || [];
+    document.getElementById('sessTotal').textContent = '(' + sessTotalCount + ' total)';
+    var page = Math.floor(sessOffset / sessLimit) + 1;
+    var pages = Math.ceil(sessTotalCount / sessLimit) || 1;
+    document.getElementById('sessPageInfo').textContent = page + ' / ' + pages;
+    document.getElementById('sessPrev').disabled = sessOffset === 0;
+    document.getElementById('sessNext').disabled = sessOffset + sessLimit >= sessTotalCount;
+
+    var body = document.getElementById('sessBody');
+    if (!sessions.length) { body.innerHTML = '<tr><td colspan="10" class="empty">No sessions yet. Launch traffic above.</td></tr>'; return; }
     var html = '';
     for (var i = 0; i < sessions.length; i++) {
       var s = sessions[i];
       var evts = (s.events || []).join(', ');
-      var dur = s.durationMs ? (s.durationMs / 1000).toFixed(1) + 's' : '\u2014';
+      var time = s.createdAt ? s.createdAt.replace('T', ' ').slice(0, 19) : '';
       html += '<tr>'
-        + '<td>' + esc(formatTime(s.createdAt)) + '</td>'
+        + '<td>' + esc(time) + '</td>'
         + '<td>' + stateBadge(s.state) + '</td>'
         + '<td>' + esc(s.appBundle || '') + '</td>'
         + '<td>' + esc(s.deviceOs || '') + '</td>'
@@ -391,31 +359,42 @@
         + '<td>' + (s.bidPrice ? '$' + s.bidPrice.toFixed(4) : '\u2014') + '</td>'
         + '<td style="' + latencyColor(s.latencyMs) + '">' + (s.latencyMs ? s.latencyMs + 'ms' : '\u2014') + '</td>'
         + '<td style="font-size:10px;color:#8b949e">' + esc(evts) + '</td>'
-        + '<td>' + dur + '</td>'
+        + '<td class="err-text" title="' + esc(s.error || '') + '">' + esc(friendlyError(s.error)) + '</td>'
         + '</tr>';
     }
-    logBody.innerHTML = html;
+    body.innerHTML = html;
   }
 
   function jsonOk(r) { if (!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.json(); }
 
   window.refreshAll = function() {
     document.getElementById('statusText').textContent = 'Loading...';
-    var limit = document.getElementById('logLimit').value || '100';
     Promise.all([
-      fetch('/api/stats').then(jsonOk),
-      fetch('/api/stats/sessions?limit=' + limit).then(jsonOk),
+      fetch('/api/history/stats').then(jsonOk),
+      fetch('/api/history/daily?days=14').then(jsonOk),
+      fetch('/api/history/sessions?limit=' + sessLimit + '&offset=' + sessOffset).then(jsonOk),
       fetch('/api/pool').then(jsonOk).catch(function() { return { size: 0 }; }),
-    ]).then(function(results) {
-      renderStats(results[0]);
-      renderSessions(results[1].sessions || []);
-      var ps = results[2].size || 0;
+      fetch('/api/proxies').then(jsonOk).catch(function() { return { size: 0 }; }),
+    ]).then(function(r) {
+      renderStats(r[0]);
+      renderDaily(r[1].stats || []);
+      renderSessions(r[2]);
+      var ps = r[3].size || 0;
       document.getElementById('poolSize').textContent = ps > 0 ? '(' + ps + ' users)' : '(empty)';
+      var pxs = r[4].size || 0;
+      document.getElementById('proxyPoolSize').textContent = pxs > 0 ? '(pool: ' + pxs + ')' : '(no pool)';
+      document.getElementById('dbLabel').textContent = ' \u00b7 DB: ' + (r[2].total || 0) + ' sessions';
       document.getElementById('statusText').textContent = 'OK';
-      document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
     }).catch(function(err) {
       document.getElementById('statusText').textContent = 'Error: ' + err.message;
     });
+  };
+
+  window.sessPage = function(dir) {
+    sessOffset = Math.max(0, sessOffset + dir * sessLimit);
+    if (sessOffset >= sessTotalCount) sessOffset = Math.max(0, sessTotalCount - sessLimit);
+    refreshAll();
   };
 
   window.toggleAuto = function() {
@@ -435,12 +414,11 @@
   window.launchTraffic = function() {
     var endpoint = document.getElementById('launchEndpoint').value.trim();
     if (!endpoint) { alert('Enter DSP endpoint'); return; }
-
     var body = {
       rtbEndpoint: endpoint,
       count: parseInt(document.getElementById('launchCount').value) || 5,
       appBundle: document.getElementById('launchBundle').value.trim() || 'tv.pluto.android',
-      bidfloor: parseFloat(document.getElementById('launchFloor').value) || 2.0,
+      bidfloor: parseFloat(document.getElementById('launchFloor').value) || 0.5,
     };
     var os = document.getElementById('launchOs').value;
     if (os) body.os = os;
@@ -448,24 +426,18 @@
     var proxy = document.getElementById('launchProxy').value.trim();
     if (proxy) body.proxy = proxy;
 
-    fetch('/api/launch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    fetch('/api/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     .then(jsonOk)
     .then(function(data) {
-      if (data.error) {
-        alert('Error: ' + data.error);
-      } else {
+      if (data.error) { alert('Error: ' + data.error); }
+      else {
         document.getElementById('statusText').textContent = 'Launched ' + data.launched + ' sessions';
-        setTimeout(window.refreshAll, 1000);
+        setTimeout(window.refreshAll, 2000);
       }
     })
     .catch(function(err) { alert('Failed: ' + err.message); });
   };
 
-  // Initial load
   window.refreshAll();
 })();
 </script>

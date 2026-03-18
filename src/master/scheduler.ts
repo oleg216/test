@@ -5,6 +5,7 @@ import { WorkerManager } from './worker-manager.js';
 import { MetricsRegistry } from './metrics.js';
 import { SessionState } from '../shared/types.js';
 import type { SessionConfig, SessionInfo, WorkerToMasterMessage } from '../shared/types.js';
+import { SessionStore } from './session-store.js';
 
 const logger = createLogger('scheduler');
 const SESSION_CLEANUP_DELAY_MS = 60_000;
@@ -14,10 +15,12 @@ export class SessionScheduler {
   private cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private workerManager: WorkerManager;
   private metrics: MetricsRegistry;
+  private store: SessionStore;
 
-  constructor(workerManager: WorkerManager, metrics: MetricsRegistry) {
+  constructor(workerManager: WorkerManager, metrics: MetricsRegistry, store: SessionStore) {
     this.workerManager = workerManager;
     this.metrics = metrics;
+    this.store = store;
   }
 
   createSession(config: SessionConfig): SessionInfo {
@@ -52,7 +55,7 @@ export class SessionScheduler {
     this.metrics.sessionCreated();
 
     // Add to session log for dashboard
-    this.metrics.addSessionLog({
+    const logEntry = {
       sessionId,
       createdAt: new Date().toISOString(),
       state: SessionState.CREATED,
@@ -63,8 +66,10 @@ export class SessionScheduler {
       geo: config.device.geo?.country || '',
       city: config.device.geo?.city || '',
       ip: config.device.ip,
-      events: [],
-    });
+      events: [] as string[],
+    };
+    this.metrics.addSessionLog(logEntry);
+    this.store.insertSession(logEntry);
 
     logger.info({ sessionId, workerId: worker.id }, 'Session created');
     return session;
@@ -148,6 +153,11 @@ export class SessionScheduler {
           }
 
           this.metrics.updateSessionLog(msg.sessionId, { state: msg.state });
+          // Persist final metrics snapshot to DB
+          const currentEntry = this.metrics.getSessionLogEntry(msg.sessionId);
+          if (currentEntry) {
+            this.store.updateSession(msg.sessionId, currentEntry);
+          }
         }
         break;
       }
@@ -164,7 +174,10 @@ export class SessionScheduler {
             state: msg.state,
             error: msg.error,
           });
+          this.store.updateSession(msg.sessionId, { state: msg.state, error: msg.error });
         }
+        this.workerManager.removeSessionFromWorker(msg.sessionId);
+        this.metrics.sessionsRunning(this.activeSessions);
         this.scheduleCleanup(msg.sessionId);
         break;
       }
@@ -181,6 +194,10 @@ export class SessionScheduler {
             state: SessionState.STOPPED,
             durationMs,
           });
+          const finalEntry = this.metrics.getSessionLogEntry(msg.sessionId);
+          if (finalEntry) {
+            this.store.updateSession(msg.sessionId, finalEntry);
+          }
         }
         this.workerManager.removeSessionFromWorker(msg.sessionId);
         this.metrics.sessionsRunning(this.activeSessions);
@@ -212,8 +229,16 @@ export class SessionScheduler {
   }
 
   private getSessionLogEvents(sessionId: string): string[] | undefined {
-    const logs = this.metrics.getRecentSessions(500);
-    return logs.find(e => e.sessionId === sessionId)?.events;
+    return this.metrics.getSessionLogEntry(sessionId)?.events;
+  }
+
+  shutdown(): void {
+    for (const timer of this.cleanupTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.cleanupTimers.clear();
+    this.sessions.clear();
+    this.store.close();
   }
 
   private scheduleCleanup(sessionId: string): void {

@@ -70,6 +70,7 @@ export class MetricsRegistry {
 
   // Recent session log for dashboard table (ring buffer)
   private _recentSessions: SessionLogEntry[] = [];
+  private _sessionIndex = new Map<string, SessionLogEntry>();
   private readonly RECENT_MAX = 500;
 
   constructor() {
@@ -209,14 +210,22 @@ export class MetricsRegistry {
 
   addSessionLog(entry: SessionLogEntry): void {
     this._recentSessions.unshift(entry);
+    this._sessionIndex.set(entry.sessionId, entry);
     if (this._recentSessions.length > this.RECENT_MAX) {
+      // Remove evicted entry from index
+      const evicted = this._recentSessions[this.RECENT_MAX];
+      this._sessionIndex.delete(evicted.sessionId);
       this._recentSessions.length = this.RECENT_MAX;
     }
   }
 
   updateSessionLog(sessionId: string, update: Partial<SessionLogEntry>): void {
-    const entry = this._recentSessions.find(e => e.sessionId === sessionId);
+    const entry = this._sessionIndex.get(sessionId);
     if (entry) Object.assign(entry, update);
+  }
+
+  getSessionLogEntry(sessionId: string): SessionLogEntry | undefined {
+    return this._sessionIndex.get(sessionId);
   }
 
   getRecentSessions(limit = 100): SessionLogEntry[] {

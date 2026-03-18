@@ -76,7 +76,7 @@ describe('buildBidRequest', () => {
     expect(v.playbackmethod).toEqual([1, 2, 5, 6]);
     expect(v.api).toEqual([1, 2]);
 
-    // Source — empty (matches DSP sample)
+    // Source
     expect(req.source).toEqual({});
 
     // Regs

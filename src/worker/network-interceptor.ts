@@ -72,4 +72,12 @@ export function setupNetworkInterceptor(
     onLog(entry);
     requestTimestamps.delete(request);
   });
+
+  page.on('requestfailed', (request) => {
+    requestTimestamps.delete(request);
+  });
+
+  page.on('requestfinished', (request) => {
+    requestTimestamps.delete(request);
+  });
 }

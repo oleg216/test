@@ -18,7 +18,9 @@ interface WorkerHandle {
 
 export class WorkerManager {
   private workers = new Map<number, WorkerHandle>();
+  private sessionToWorker = new Map<string, number>();
   private nextId = 0;
+  private _shuttingDown = false;
   private onSessionUpdate?: (msg: WorkerToMasterMessage) => void;
 
   constructor(onSessionUpdate: (msg: WorkerToMasterMessage) => void) {
@@ -88,8 +90,9 @@ export class WorkerManager {
     child.on('exit', (code) => {
       logger.warn({ workerId: id, code }, 'Worker exited');
       const currentHandle = this.workers.get(id);
-      if (currentHandle && currentHandle.status !== 'restarting') {
+      if (currentHandle && currentHandle.status !== 'restarting' && !this._shuttingDown) {
         currentHandle.status = 'dead';
+        this.cleanupWorkerSessions(currentHandle);
         this.workers.delete(id);
         this.spawnWorker();
       }
@@ -103,12 +106,19 @@ export class WorkerManager {
     return readyPromise;
   }
 
+  private cleanupWorkerSessions(handle: WorkerHandle): void {
+    for (const sessionId of handle.sessionIds) {
+      this.sessionToWorker.delete(sessionId);
+    }
+  }
+
   private restartWorker(id: number): void {
     const handle = this.workers.get(id);
     if (!handle) return;
 
     logger.info({ workerId: id, totalProcessed: handle.totalProcessed }, 'Restarting worker (memory management)');
     handle.status = 'restarting';
+    this.cleanupWorkerSessions(handle);
     handle.process.kill('SIGTERM');
     this.workers.delete(id);
     this.spawnWorker();
@@ -133,6 +143,7 @@ export class WorkerManager {
     if (msg.type === 'create-session') {
       worker.sessionIds.add(msg.payload.sessionId);
       worker.activeSessions++;
+      this.sessionToWorker.set(msg.payload.sessionId, workerId);
     }
 
     worker.process.send(msg);
@@ -140,18 +151,17 @@ export class WorkerManager {
   }
 
   findWorkerForSession(sessionId: string): number | null {
-    for (const [id, worker] of this.workers) {
-      if (worker.sessionIds.has(sessionId)) return id;
-    }
-    return null;
+    return this.sessionToWorker.get(sessionId) ?? null;
   }
 
   removeSessionFromWorker(sessionId: string): void {
-    for (const worker of this.workers.values()) {
-      if (worker.sessionIds.delete(sessionId)) {
-        worker.activeSessions = Math.max(0, worker.activeSessions - 1);
-        break;
-      }
+    const workerId = this.sessionToWorker.get(sessionId);
+    if (workerId === undefined) return;
+    this.sessionToWorker.delete(sessionId);
+    const worker = this.workers.get(workerId);
+    if (worker) {
+      worker.sessionIds.delete(sessionId);
+      worker.activeSessions = Math.max(0, worker.activeSessions - 1);
     }
   }
 
@@ -174,10 +184,24 @@ export class WorkerManager {
     return count;
   }
 
-  async shutdown(): Promise<void> {
-    for (const worker of this.workers.values()) {
-      worker.process.kill('SIGTERM');
-    }
+  async shutdown(timeoutMs = 10_000): Promise<void> {
+    this._shuttingDown = true;
+    const exitPromises = Array.from(this.workers.values()).map(worker =>
+      new Promise<void>(resolve => {
+        const timer = setTimeout(() => {
+          logger.warn({ workerId: worker.id }, 'Worker did not exit in time, killing');
+          worker.process.kill('SIGKILL');
+          resolve();
+        }, timeoutMs);
+        worker.process.once('exit', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        worker.process.kill('SIGTERM');
+      }),
+    );
+    await Promise.all(exitPromises);
     this.workers.clear();
+    this.sessionToWorker.clear();
   }
 }

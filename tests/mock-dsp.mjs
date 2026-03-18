@@ -1,6 +1,12 @@
 import http from 'node:http';
+import https from 'node:https';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.MOCK_DSP_PORT || '4200', 10);
+const HTTPS_PORT = parseInt(process.env.MOCK_DSP_HTTPS_PORT || '4201', 10);
 const HOST = process.env.MOCK_DSP_HOST || 'localhost';
 
 function buildVastXml(trackBase) {
@@ -106,3 +112,17 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  GET  /stats  — view all received events');
   console.log('  POST /reset  — clear tracked events');
 });
+
+// HTTPS server for proxy testing (proxy forces http→https)
+try {
+  const sslOpts = {
+    key: readFileSync(resolve(__dirname, 'mock-key.pem')),
+    cert: readFileSync(resolve(__dirname, 'mock-cert.pem')),
+  };
+  const httpsServer = https.createServer(sslOpts, server.listeners('request')[0]);
+  httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+    console.log(`Mock DSP HTTPS running on https://0.0.0.0:${HTTPS_PORT}`);
+  });
+} catch {
+  console.log('No SSL certs found, HTTPS disabled. Run: openssl req -x509 -newkey rsa:2048 -keyout tests/mock-key.pem -out tests/mock-cert.pem -days 365 -nodes');
+}

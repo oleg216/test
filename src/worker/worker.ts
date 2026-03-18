@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare var window: any;
 
 import { resolve } from 'path';
@@ -48,6 +48,26 @@ function reportStats(): void {
   });
 }
 
+async function attemptBidRequest(
+  sessionId: string,
+  sm: SessionStateMachine,
+  config: MasterToWorkerMessage & { type: 'create-session' },
+): Promise<BidResult> {
+  const rtbStart = Date.now();
+  const bidResponse = await sendBidRequest(config.payload);
+  const rtbLatency = Date.now() - rtbStart;
+  const result = extractBidResult(bidResponse);
+  if (!result) {
+    sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { no_bid: 1, rtb_latency_ms: rtbLatency } });
+    throw new Error('No VAST in bid response');
+  }
+  sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: {
+    bid_price: result.auctionData.price,
+    rtb_latency_ms: rtbLatency,
+  } });
+  return result;
+}
+
 async function createSession(sessionId: string, config: MasterToWorkerMessage & { type: 'create-session' }): Promise<void> {
   const sm = new SessionStateMachine(sessionId, config.payload);
   sessions.set(sessionId, sm);
@@ -64,11 +84,12 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     );
 
     setupNetworkInterceptor(page, sessionId, (entry: NetworkLogEntry) => {
-      logger.info(entry, 'network');
+      logger.debug(entry, 'network');
     });
 
     const playerPath = resolve(process.cwd(), 'public', 'player.html');
     await page.goto(`file://${playerPath}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await page.waitForFunction(() => (window as any).__playerReady === true, { timeout: 10000 });
 
     // Pre-RTB fraud check (non-blocking — log only)
@@ -90,38 +111,18 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
 
     let bidResult: BidResult;
     try {
-      const rtbStart = Date.now();
-      const bidResponse = await sendBidRequest(config.payload);
-      const rtbLatency = Date.now() - rtbStart;
-      const result = extractBidResult(bidResponse);
-      if (!result) {
-        // Report no-bid + latency to master
-        sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { no_bid: 1, rtb_latency_ms: rtbLatency } });
-        throw new Error('No VAST in bid response');
-      }
-      bidResult = result;
-      // Report bid price + latency to master
-      sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: {
-        bid_price: bidResult.auctionData.price,
-        rtb_latency_ms: rtbLatency,
-      } });
+      bidResult = await attemptBidRequest(sessionId, sm, config);
     } catch (err) {
       if (sm.canRetry()) {
         sm.incrementRetry();
         logger.warn({ sessionId, retry: sm.retryCount }, 'RTB failed, retrying');
-        const rtbStart = Date.now();
-        const bidResponse = await sendBidRequest(config.payload);
-        const rtbLatency = Date.now() - rtbStart;
-        const result = extractBidResult(bidResponse);
-        if (!result) {
-          sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { no_bid: 1, rtb_latency_ms: rtbLatency } });
-          throw new Error('No VAST in bid response after retry');
+        try {
+          bidResult = await attemptBidRequest(sessionId, sm, config);
+        } catch (retryErr) {
+          sm.setError(SessionState.ERROR_NETWORK, (retryErr as Error).message);
+          sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
+          return;
         }
-        bidResult = result;
-        sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: {
-          bid_price: bidResult.auctionData.price,
-          rtb_latency_ms: rtbLatency,
-        } });
       } else {
         sm.setError(SessionState.ERROR_NETWORK, (err as Error).message);
         sendToMaster({ type: 'session-error', sessionId, error: sm.error!, state: sm.state });
@@ -135,7 +136,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
 
     // Fire win notification (nurl) — fire-and-forget, don't block session
     if (bidResult.nurl) {
-      fireWinNotice(bidResult.nurl, bidResult.auctionData, proxyFetchFn).catch(() => {});
+      fireWinNotice(bidResult.nurl, bidResult.auctionData, proxyFetchFn).catch(err => logger.warn({ sessionId, err: (err as Error).message }, 'Win notice failed'));
     }
 
     // VAST RESOLVING
@@ -163,11 +164,13 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     sendToMaster({ type: 'session-update', sessionId, state: sm.state });
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await page.evaluate((url: string) => (window as any).__loadAd(url), creative.mediaUrl);
     } catch (err) {
       if (sm.canRetry()) {
         sm.incrementRetry();
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await page.evaluate((url: string) => (window as any).__loadAd(url), creative.mediaUrl);
         } catch (retryErr) {
           sm.setError(SessionState.ERROR_MEDIA, (retryErr as Error).message);
@@ -200,6 +203,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     scheduler.schedule(timeline, async (event) => {
       if (event === 'click') {
         // Simulate DOM click event on the ad video
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await page.evaluate(() => (window as any).__simulateClick());
         // Fire click tracking pixels
         if (creative.clickTrackingUrls.length > 0) {
@@ -222,7 +226,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
 
         // Fire billing notice (burl) after impression — confirms ad was rendered
         if (event === 'impression' && bidResult.burl) {
-          fireBillingNotice(bidResult.burl, bidResult.auctionData, proxyFetchFn).catch(() => {});
+          fireBillingNotice(bidResult.burl, bidResult.auctionData, proxyFetchFn).catch(err => logger.warn({ sessionId, err: (err as Error).message }, 'Billing notice failed'));
         }
       }
       sendToMaster({ type: 'session-update', sessionId, state: sm.state, metrics: { [`tracking_${event}`]: 1 } });
@@ -231,6 +235,7 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     if (hasComplete) {
       // Full view — wait for video to end
       await page.waitForFunction(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => (window as any).__adCompleted === true,
         { timeout: (creative.duration + 10) * 1000 },
       );
@@ -243,11 +248,13 @@ async function createSession(sessionId: string, config: MasterToWorkerMessage & 
     sm.transition(SessionState.CONTENT_PLAYING);
     sendToMaster({ type: 'session-update', sessionId, state: sm.state });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await page.evaluate((url: string) => (window as any).__loadContent(url), config.payload.contentUrl);
     await page.waitForTimeout(5000);
 
     // STOPPING
     sm.transition(SessionState.STOPPING);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await page.evaluate(() => (window as any).__stopAll());
     await browserPool.closeContext(sessionId);
 

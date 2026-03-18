@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import { createLogger } from '../shared/logger.js';
 import { RTB_TIMEOUT_MS, DEFAULT_BIDFLOOR_VIDEO } from '../shared/constants.js';
 import { lookupGeo, lookupCarrier } from '../shared/geo-lookup.js';
-import { getProxyAgent } from '../shared/proxy-fetch.js';
+import { getProxyAgent, createProxyFetch } from '../shared/proxy-fetch.js';
 import type { SessionConfig, RtbBidRequest, RtbBidResponse, BidResult, AuctionData } from '../shared/types.js';
 
 const logger = createLogger('rtb-adapter');
@@ -161,19 +161,30 @@ export function buildBidRequest(config: SessionConfig, requestId: string): RtbBi
  */
 const proxyIpCache = new Map<string, { ip: string; ts: number }>();
 const PROXY_IP_TTL = 5 * 60 * 1000;
+const MAX_PROXY_CACHE_SIZE = 100;
 
 async function resolveProxyIp(proxyUrl: string): Promise<string | null> {
+  // Evict expired entries
+  const now = Date.now();
+  for (const [key, entry] of proxyIpCache) {
+    if (now - entry.ts >= PROXY_IP_TTL) proxyIpCache.delete(key);
+  }
+
   const cached = proxyIpCache.get(proxyUrl);
-  if (cached && Date.now() - cached.ts < PROXY_IP_TTL) return cached.ip;
+  if (cached) return cached.ip;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await fetch('https://api.ipify.org?format=json', {
+    const proxyFetch = createProxyFetch(proxyUrl);
+    const res = await proxyFetch!('https://api.ipify.org?format=json', {
       signal: AbortSignal.timeout(5000),
-      dispatcher: getProxyAgent(proxyUrl) as import('undici').Dispatcher,
-    } as any);
+    });
     const data = (await res.json()) as { ip: string };
     if (data.ip) {
+      if (proxyIpCache.size >= MAX_PROXY_CACHE_SIZE) {
+        // Delete oldest entry
+        const oldestKey = proxyIpCache.keys().next().value!;
+        proxyIpCache.delete(oldestKey);
+      }
       proxyIpCache.set(proxyUrl, { ip: data.ip, ts: Date.now() });
       logger.info({ proxyIp: data.ip }, 'Resolved proxy exit IP');
       return data.ip;
@@ -189,31 +200,33 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
   const bidRequest = buildBidRequest(config, requestId);
 
   // If proxy is used, resolve exit IP and rebuild device fields to match
+  // device.ip MUST match the TCP source IP that DSP sees
   if (config.proxy) {
     const proxyIp = await resolveProxyIp(config.proxy);
-    if (proxyIp) {
-      bidRequest.device.ip = proxyIp;
-
-      // GeoIP lookup — fill geo from proxy IP so it matches TCP IP
-      const geo = lookupGeo(proxyIp);
-      if (geo) {
-        bidRequest.device.geo = geo;
-      } else {
-        delete bidRequest.device.geo;
-      }
-
-      // Carrier/ISP from proxy IP
-      const carrier = lookupCarrier(proxyIp);
-      if (carrier) {
-        bidRequest.device.carrier = carrier;
-      }
-
-      // Rebuild user ID from new IP
-      bidRequest.user = {
-        id: generateUserId(proxyIp, bidRequest.device.ua),
-        ext: {},
-      };
+    if (!proxyIp) {
+      throw new Error('Failed to resolve proxy exit IP — cannot send bid with mismatched IP');
     }
+    bidRequest.device.ip = proxyIp;
+
+    // GeoIP lookup — fill geo from proxy IP so it matches TCP IP
+    const geo = lookupGeo(proxyIp);
+    if (geo) {
+      bidRequest.device.geo = geo;
+    } else {
+      delete bidRequest.device.geo;
+    }
+
+    // Carrier/ISP from proxy IP
+    const carrier = lookupCarrier(proxyIp);
+    if (carrier) {
+      bidRequest.device.carrier = carrier;
+    }
+
+    // Rebuild user ID from new IP
+    bidRequest.user = {
+      id: generateUserId(proxyIp, bidRequest.device.ua),
+      ext: {},
+    };
   }
 
   // Force HTTPS for DSP endpoints — HTTP through proxy causes 301 redirect
@@ -228,21 +241,21 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), RTB_TIMEOUT_MS);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fetchOptions: any = {
+  const fetchOptions: RequestInit = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-openrtb-version': '2.6' },
     body: JSON.stringify(bidRequest),
     signal: controller.signal,
-    redirect: 'error' as const, // Fail on redirect instead of silently losing POST body
   };
 
-  if (config.proxy) {
-    fetchOptions.dispatcher = getProxyAgent(config.proxy) as import('undici').Dispatcher;
-  }
-
   try {
-    const response = await fetch(endpoint, fetchOptions);
+    let response: Response;
+    if (config.proxy) {
+      const proxyFetch = createProxyFetch(config.proxy)!;
+      response = await proxyFetch(endpoint, fetchOptions);
+    } else {
+      response = await fetch(endpoint, fetchOptions);
+    }
 
     // oRTB 2.6 §4.2.1: HTTP 204 = no-bid
     if (response.status === 204) {
@@ -254,7 +267,12 @@ export async function sendBidRequest(config: SessionConfig): Promise<RtbBidRespo
       throw new Error(`RTB request failed: ${response.status}`);
     }
 
-    const bidResponse = (await response.json()) as RtbBidResponse;
+    const raw = await response.json() as Record<string, unknown>;
+    if (typeof raw !== 'object' || raw === null || !('id' in raw) || (raw.seatbid != null && !Array.isArray(raw.seatbid))) {
+      logger.warn({ requestId }, 'Invalid bid response structure');
+      return { id: requestId, seatbid: [] };
+    }
+    const bidResponse = raw as unknown as RtbBidResponse;
     logger.info({ requestId, seatbids: bidResponse.seatbid?.length || 0 }, 'RTB bid response received');
     return bidResponse;
   } finally {
