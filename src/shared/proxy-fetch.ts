@@ -46,9 +46,12 @@ function socksFetch(url: string, agent: SocksProxyAgent, options: { method?: str
       res.on('data', (c: Buffer) => chunks.push(c));
       res.on('end', () => {
         clearTimeout(hardTimeout);
+        const status = res.statusCode || 200;
+        // HTTP 204/304 are null-body statuses — Response constructor rejects body for them
+        const isNullBody = status === 204 || status === 304;
         const body = Buffer.concat(chunks).toString();
-        resolve(new Response(body, {
-          status: res.statusCode || 200,
+        resolve(new Response(isNullBody ? null : body, {
+          status,
           statusText: res.statusMessage || '',
           headers: res.headers as Record<string, string>,
         }));

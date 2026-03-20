@@ -5,7 +5,7 @@ services:
     network_mode: host
     environment:
       - MAX_SESSIONS=200
-      - MAX_WORKERS=20
+      - MAX_WORKERS=5
       - SESSIONS_PER_WORKER=10
       - RTB_TIMEOUT_MS=2000
       - VAST_TIMEOUT_MS=3000

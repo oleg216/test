@@ -11,7 +11,12 @@ export function loadProxyPool(filePath?: string): string[] {
   const path = filePath || resolve(process.cwd(), 'data', 'proxies.txt');
   try {
     const raw = readFileSync(path, 'utf-8');
-    proxies = raw.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    proxies = raw.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'))
+      .map(l => {
+        // Auto-prefix socks5:// if missing protocol
+        if (!l.includes('://')) return `socks5://${l}`;
+        return l;
+      });
     nextIndex = 0;
     logger.info({ count: proxies.length }, 'Proxy pool loaded');
     return proxies;

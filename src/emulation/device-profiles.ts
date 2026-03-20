@@ -68,7 +68,7 @@ export const DEVICE_PRESETS: Record<string, DevicePreset> = {
   },
 };
 
-// Fingerprint presets per OS — realistic CTV hardware fingerprints
+// Fingerprint presets — realistic CTV hardware fingerprints
 interface FingerprintPreset {
   platform: string;
   hwConcurrency: number;
@@ -76,6 +76,7 @@ interface FingerprintPreset {
   webgl: { vendor: string; renderer: string };
 }
 
+// Per-OS defaults
 export const FINGERPRINT_PRESETS: Record<string, FingerprintPreset> = {
   AndroidTV: {
     platform: 'Linux armv8l',
@@ -97,13 +98,203 @@ export const FINGERPRINT_PRESETS: Record<string, FingerprintPreset> = {
   },
 };
 
+// Per-model overrides — real hardware specs from device databases
+const MODEL_HARDWARE: Array<{ match: (model: string) => boolean; spec: Partial<FingerprintPreset> }> = [
+  // === TCL ===
+  // TCL EC780/EP660 — Cortex-A55, Mali-470 MP3, 2GB
+  { match: (m) => /^(55EC780|\d+EP660)$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-470 MP3' },
+  }},
+  // TCL DC760 — Cortex-A53, Mali-T860 MP2, 2.5GB
+  { match: (m) => /^\d+DC760$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-T860 MP2' },
+  }},
+  // TCL P66/P6/X3/X1 — Cortex-A53, Mali-T860 MP2, 2GB
+  { match: (m) => /^\d+(P66|P6|X3|X1)$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-T860 MP2' },
+  }},
+
+  // === Xiaomi S Pro (M9-SP) — Cortex-A73, Mali-G52 MC1, 4GB ===
+  { match: (m) => /^L\d+M9-SP$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Xiaomi S series (M9-S) — Cortex-A73, Mali-G52 MC1, 3GB
+  { match: (m) => /^L\d+M9-S$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 3,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Xiaomi A Pro 100 2024 (L100M8-AP) — Cortex-A73, Mali-G52 MC1, 4GB
+  { match: (m) => m === 'L100M8-AP', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Xiaomi A Pro 2024 (M8-AP) — Cortex-A55, Mali-G52 MC1, 2GB
+  { match: (m) => /^L\d+M8-AP$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Xiaomi A series (M8-A) — Cortex-A35, Mali-G31 MP2, 1.5GB
+  { match: (m) => /^L\d+M8-A$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 1.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G31 MP2' },
+  }},
+  // Xiaomi P1E (M7-P1E) — Cortex-A55, Mali-G52, 2GB
+  { match: (m) => /^L\d+M7-P1E$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52' },
+  }},
+  // Xiaomi P1 (M6-6AEU) — MT9611, Mali-G52 MP2, 2GB
+  { match: (m) => /^L\d+M6-6AEU$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MP2' },
+  }},
+  // Xiaomi Q1 (L65M6-ESG) — MT9611, Mali-G52 MP2, 2GB
+  { match: (m) => m === 'L65M6-ESG', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MP2' },
+  }},
+  // Xiaomi 5ASP (L55M6-5ASP) — Cortex-A53, Mali-450 MP3, 2GB
+  { match: (m) => m === 'L55M6-5ASP', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-450 MP3' },
+  }},
+
+  // === Redmi ===
+  // Redmi Smart TV A (MA-RA) 65/70/75 — Cortex-A35, Mali-G31 MP2, 2GB
+  { match: (m) => /^L(65|70|75)MA-RA$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G31 MP2' },
+  }},
+  // Redmi Smart TV A (MA-RA) 50/55 — Cortex-A35, Mali-G31 MP2, 1.5GB
+  { match: (m) => /^L(50|55)MA-RA$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 1.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G31 MP2' },
+  }},
+  // Redmi Smart TV X (M6-RK) — Cortex-A73, Mali-G51 MP3, 2GB
+  { match: (m) => /^L\d+M6-RK$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G51 MP3' },
+  }},
+
+  // === Sony BRAVIA (Android TV) ===
+  // Sony BRAVIA XR-55A95K (2022 QD-OLED) — MediaTek MT5895, Cortex-A73×2+A53×2, Mali-G52 MC1, 4GB
+  { match: (m) => m === 'BRAVIA XR-55A95K', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Sony BRAVIA XR-65X90K (2022 Full Array LED) — MediaTek MT5895, Mali-G52 MC1, 3GB
+  { match: (m) => m === 'BRAVIA XR-65X90K', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 3,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+  // Sony BRAVIA XR-75X95K (2022 Mini LED) — MediaTek MT5895, Mali-G52 MC1, 4GB
+  { match: (m) => m === 'BRAVIA XR-75X95K', spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+
+  // === Nvidia SHIELD (Android TV) ===
+  // SHIELD Android TV Pro — Tegra X1+ (Denver 2 + A57), 256-core Maxwell GPU, 3GB
+  { match: (m) => m === 'SHIELD Android TV Pro', spec: {
+    platform: 'Linux aarch64', hwConcurrency: 4, deviceMemory: 3,
+    webgl: { vendor: 'NVIDIA Corporation', renderer: 'NVIDIA Tegra' },
+  }},
+  // SHIELD Android TV — Tegra X1+, 256-core Maxwell GPU, 2GB
+  { match: (m) => m === 'SHIELD Android TV', spec: {
+    platform: 'Linux aarch64', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'NVIDIA Corporation', renderer: 'NVIDIA Tegra' },
+  }},
+
+  // === Hisense (Android TV) ===
+  // Hisense A6H series (2022) — MediaTek MT9602, Cortex-A55×4, Mali-G52 MC1, 2GB
+  { match: (m) => /^\d+A6H$/.test(m), spec: {
+    platform: 'Linux armv8l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52 MC1' },
+  }},
+
+  // === Samsung Tizen ===
+  // UN55TU8000 (2020 Crystal UHD) — Samsung MicomS SoC, Mali-G51, 1.5GB
+  { match: (m) => m === 'UN55TU8000', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 2, deviceMemory: 1.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G51' },
+  }},
+  // UN43AU8000 (2021 Crystal UHD) — Samsung Crystal SoC, Mali-G51, 2GB
+  { match: (m) => m === 'UN43AU8000', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 2, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G51' },
+  }},
+  // UN50CU7000 (2023 Crystal UHD) — Samsung Crystal Processor 4K, Mali-G51 MP3, 2GB
+  { match: (m) => m === 'UN50CU7000', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G51 MP3' },
+  }},
+  // QN65Q80B (2022 QLED) — Samsung Neural Quantum 4K, Mali-G78 MP2, 2.5GB
+  { match: (m) => m === 'QN65Q80B', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 2.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G78 MP2' },
+  }},
+  // QN55S95B (2022 QD-OLED flagship) — Samsung Neural Quantum 4K, Mali-G78 MP2, 4GB
+  { match: (m) => m === 'QN55S95B', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G78 MP2' },
+  }},
+
+  // === LG WebOS ===
+  // OLED55C3PUA (2023 C3) — LG Alpha 9 Gen 6, Mali-G78 MP2, 3GB
+  { match: (m) => m === 'OLED55C3PUA', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 3,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G78 MP2' },
+  }},
+  // OLED65B3PSA (2023 B3) — LG Alpha 7 Gen 6, Mali-G52, 2GB
+  { match: (m) => m === 'OLED65B3PSA', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52' },
+  }},
+  // 55NANO75UQA (2022 NanoCell) — LG Alpha 5 Gen 5, Mali-G51 MP3, 1.5GB
+  { match: (m) => m === '55NANO75UQA', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 2, deviceMemory: 1.5,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G51 MP3' },
+  }},
+  // OLED55G3PUA (2023 G3 Gallery) — LG Alpha 9 Gen 6, Mali-G78 MP2, 4GB
+  { match: (m) => m === 'OLED55G3PUA', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 4,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G78 MP2' },
+  }},
+  // 65QNED80URA (2023 QNED) — LG Alpha 7 Gen 6, Mali-G52, 2GB
+  { match: (m) => m === '65QNED80URA', spec: {
+    platform: 'Linux armv7l', hwConcurrency: 4, deviceMemory: 2,
+    webgl: { vendor: 'ARM', renderer: 'Mali-G52' },
+  }},
+];
+
+// Per-model resolution — real panel specs
+function getModelResolution(vendor: string, model: string): { w: number; h: number } | null {
+  if (vendor === 'TCL') return { w: 3840, h: 2160 };
+  if (vendor === 'Xiaomi' || vendor === 'Redmi') return { w: 3840, h: 2160 }; // All models in our preset list are 4K
+  return null;
+}
+
+function getModelHardware(model: string, os: string): FingerprintPreset {
+  const base = FINGERPRINT_PRESETS[os] || FINGERPRINT_PRESETS.AndroidTV;
+  for (const entry of MODEL_HARDWARE) {
+    if (entry.match(model)) {
+      return { ...base, ...entry.spec } as FingerprintPreset;
+    }
+  }
+  return base;
+}
+
 function hashToSeed(input: string): number {
   const hash = createHash('sha256').update(input).digest();
   return hash.readUInt32BE(0);
 }
 
-function generateFingerprint(os: string, deviceId: string, screenWidth: number, screenHeight: number): FingerprintProfile {
-  const preset = FINGERPRINT_PRESETS[os] || FINGERPRINT_PRESETS.AndroidTV;
+function generateFingerprint(os: string, model: string, deviceId: string, screenWidth: number, screenHeight: number): FingerprintProfile {
+  const preset = getModelHardware(model, os);
   const connectionTypes = [
     { type: 'wifi', downlink: 25, rtt: 30, effectiveType: '4g' },
     { type: 'wifi', downlink: 50, rtt: 20, effectiveType: '4g' },
@@ -208,24 +399,27 @@ export function generateDeviceProfile(os: DeviceProfile['os']): DeviceProfile {
   // Build full OpenRTB geo object
   const geo: GeoData = {
     country: region.country,
-    lat: round(region.lat + (Math.random() - 0.5) * 2 * region.latJitter, 4),
-    lon: round(region.lon + (Math.random() - 0.5) * 2 * region.lonJitter, 4),
     region: region.region,
     metro: region.metro,
     city: region.city,
     zip: region.zip,
     type: 2,           // IP-based
-    accuracy: region.accuracy,
-    ipservice: 3,      // MaxMind
+    lat: round(region.lat + (Math.random() - 0.5) * 2 * region.latJitter, 4),
+    lon: round(region.lon + (Math.random() - 0.5) * 2 * region.lonJitter, 4),
   };
+
+  // Per-model resolution overrides (TCL Android TV models are all 4K)
+  const modelRes = getModelResolution(vendorEntry.vendor, model);
+  const screenWidth = modelRes?.w ?? preset.screenWidth;
+  const screenHeight = modelRes?.h ?? preset.screenHeight;
 
   return {
     os: preset.os,
     osv,
     vendor: vendorEntry.vendor,
     model,
-    screenWidth: preset.screenWidth,
-    screenHeight: preset.screenHeight,
+    screenWidth,
+    screenHeight,
     deviceId,
     ifa: uuid(),
     ip: generateResidentialIp(),
@@ -235,7 +429,7 @@ export function generateDeviceProfile(os: DeviceProfile['os']): DeviceProfile {
     userAgent,
     timezone: region.timezone,
     geo,
-    fingerprint: generateFingerprint(os, deviceId, preset.screenWidth, preset.screenHeight),
+    fingerprint: generateFingerprint(os, model, deviceId, screenWidth, screenHeight),
   };
 }
 

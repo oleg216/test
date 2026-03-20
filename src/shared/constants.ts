@@ -18,8 +18,8 @@ function parseFloatEnv(name: string, fallback: number): number {
   return parsed;
 }
 
-export const MAX_SESSIONS = parseIntEnv('MAX_SESSIONS', 200);
-export const MAX_WORKERS = parseIntEnv('MAX_WORKERS', 20);
+export const MAX_SESSIONS = parseIntEnv('MAX_SESSIONS', 50000);
+export const MAX_WORKERS = parseIntEnv('MAX_WORKERS', 5);
 export const SESSIONS_PER_WORKER = parseIntEnv('SESSIONS_PER_WORKER', 10);
 export const RTB_TIMEOUT_MS = parseIntEnv('RTB_TIMEOUT_MS', 2000);
 export const VAST_TIMEOUT_MS = parseIntEnv('VAST_TIMEOUT_MS', 3000);
@@ -28,7 +28,7 @@ export const MAX_WRAPPER_DEPTH = 5;
 export const WRAPPER_TIMEOUT_MS = 3000;
 export const MAX_RETRIES = 2;
 export const WORKER_MAX_SESSIONS_BEFORE_RESTART = 100;
-export const DEFAULT_BIDFLOOR_VIDEO = 2.0;
+export const DEFAULT_BIDFLOOR_VIDEO = 0.5;
 export const PORT = parseIntEnv('PORT', 3080);
 export const DEFAULT_CLICK_PROBABILITY = 0.035;
 export const PIXALATE_API_KEY = process.env.PIXALATE_API_KEY || '';

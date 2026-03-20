@@ -10,17 +10,30 @@ import { SessionStore } from './session-store.js';
 const logger = createLogger('scheduler');
 const SESSION_CLEANUP_DELAY_MS = 60_000;
 
+export interface SchedulerHooks {
+  onBid?: (sessionId: string, price: number, config: SessionConfig) => void;
+  onTrackingEvent?: (sessionId: string, event: string, config: SessionConfig) => void;
+  onSessionComplete?: (sessionId: string, config: SessionConfig, durationMs: number) => void;
+  onSessionError?: (sessionId: string, error: string, state: SessionState, config: SessionConfig) => void;
+}
+
 export class SessionScheduler {
   private sessions = new Map<string, SessionInfo>();
   private cleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private workerManager: WorkerManager;
   private metrics: MetricsRegistry;
   private store: SessionStore;
+  private hooks?: SchedulerHooks;
 
-  constructor(workerManager: WorkerManager, metrics: MetricsRegistry, store: SessionStore) {
+  constructor(workerManager: WorkerManager, metrics: MetricsRegistry, store: SessionStore, hooks?: SchedulerHooks) {
     this.workerManager = workerManager;
     this.metrics = metrics;
     this.store = store;
+    this.hooks = hooks;
+  }
+
+  setHooks(hooks: SchedulerHooks): void {
+    this.hooks = hooks;
   }
 
   createSession(config: SessionConfig): SessionInfo {
@@ -115,6 +128,7 @@ export class SessionScheduler {
               if (key.startsWith('tracking_')) {
                 const eventType = key.replace('tracking_', '');
                 this.metrics.trackingEventFired(eventType);
+                this.hooks?.onTrackingEvent?.(msg.sessionId, eventType, session.config);
 
                 // Track impression with geo context
                 if (eventType === 'impression') {
@@ -138,6 +152,7 @@ export class SessionScheduler {
                   session.config.device.os,
                 );
                 this.metrics.updateSessionLog(msg.sessionId, { bidPrice: msg.metrics[key] });
+                this.hooks?.onBid?.(msg.sessionId, msg.metrics[key], session.config);
               }
               if (key === 'bid_seat') {
                 this.metrics.updateSessionLog(msg.sessionId, { bidSeat: String(msg.metrics[key]) });
@@ -162,6 +177,10 @@ export class SessionScheduler {
         break;
       }
       case 'session-error': {
+        // Free worker slot FIRST so hooks.feedQueue can create new sessions
+        this.workerManager.removeSessionFromWorker(msg.sessionId);
+        this.metrics.sessionsRunning(this.activeSessions);
+        this.scheduleCleanup(msg.sessionId);
         const session = this.sessions.get(msg.sessionId);
         if (session) {
           session.state = msg.state;
@@ -175,13 +194,15 @@ export class SessionScheduler {
             error: msg.error,
           });
           this.store.updateSession(msg.sessionId, { state: msg.state, error: msg.error });
+          this.hooks?.onSessionError?.(msg.sessionId, msg.error, msg.state, session.config);
         }
-        this.workerManager.removeSessionFromWorker(msg.sessionId);
-        this.metrics.sessionsRunning(this.activeSessions);
-        this.scheduleCleanup(msg.sessionId);
         break;
       }
       case 'session-stopped': {
+        // Free worker slot FIRST so hooks.feedQueue can create new sessions
+        this.workerManager.removeSessionFromWorker(msg.sessionId);
+        this.metrics.sessionsRunning(this.activeSessions);
+        this.scheduleCleanup(msg.sessionId);
         const session = this.sessions.get(msg.sessionId);
         if (session) {
           session.state = SessionState.STOPPED;
@@ -198,10 +219,8 @@ export class SessionScheduler {
           if (finalEntry) {
             this.store.updateSession(msg.sessionId, finalEntry);
           }
+          this.hooks?.onSessionComplete?.(msg.sessionId, session.config, durationMs);
         }
-        this.workerManager.removeSessionFromWorker(msg.sessionId);
-        this.metrics.sessionsRunning(this.activeSessions);
-        this.scheduleCleanup(msg.sessionId);
         break;
       }
       case 'worker-stats':
